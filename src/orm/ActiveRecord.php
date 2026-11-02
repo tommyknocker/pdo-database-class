@@ -56,6 +56,9 @@ trait ActiveRecord
     /** @var array<string, mixed> Model attributes */
     protected array $attributes = [];
 
+    /** @var array<string, string> Attribute names a dialect mapped to the keys they were found under */
+    private array $attributeKeys = [];
+
     /** @var array<string, mixed> Original attributes (for dirty tracking) */
     protected array $oldAttributes = [];
 
@@ -151,7 +154,7 @@ trait ActiveRecord
             return $this->loadRelation($name);
         }
 
-        $key = $this->attributeKey($name, $this->attributes);
+        $key = $this->attributeKeyOf($name);
         $casts = static::casts();
         $castKey = $this->attributeKey($name, $casts);
         $value = $this->attributes[$key] ?? null;
@@ -167,9 +170,13 @@ trait ActiveRecord
      */
     public function __set(string $name, mixed $value): void
     {
-        $key = $this->attributeKey($name, $this->attributes);
+        $key = $this->attributeKeyOf($name);
         $casts = static::casts();
         $cast = $casts[$this->attributeKey($name, $casts)] ?? null;
+        if (!array_key_exists($key, $this->attributes)) {
+            // a new column may make a remembered name ambiguous
+            $this->attributeKeys = [];
+        }
         $this->attributes[$key] = $cast === null || $value instanceof RawValue ? $value : AttributeCaster::toDatabase($cast, $value);
     }
 
@@ -182,7 +189,7 @@ trait ActiveRecord
      */
     public function __isset(string $name): bool
     {
-        return isset($this->attributes[$this->attributeKey($name, $this->attributes)]);
+        return isset($this->attributes[$this->attributeKeyOf($name)]);
     }
 
     /**
@@ -192,7 +199,26 @@ trait ActiveRecord
      */
     public function __unset(string $name): void
     {
-        unset($this->attributes[$this->attributeKey($name, $this->attributes)]);
+        unset($this->attributes[$this->attributeKeyOf($name)]);
+    }
+
+    /**
+     * The key under which this model holds an attribute. A dialect that maps names (Oracle returns upper-case column
+     * names) has to scan the attributes to find it; the answer is remembered while the key stays in the attributes.
+     */
+    protected function attributeKeyOf(string $name): string
+    {
+        $remembered = $this->attributeKeys[$name] ?? null;
+        if ($remembered !== null && array_key_exists($remembered, $this->attributes)) {
+            return $remembered;
+        }
+
+        $key = $this->attributeKey($name, $this->attributes);
+        if ($key !== $name && array_key_exists($key, $this->attributes)) {
+            $this->attributeKeys[$name] = $key;
+        }
+
+        return $key;
     }
 
     /** @param array<string, mixed> $attributes */
@@ -967,6 +993,7 @@ trait ActiveRecord
     public function populate(array $data): static
     {
         $this->attributes = array_merge($this->attributes, $data);
+        $this->attributeKeys = [];
         return $this;
     }
 
