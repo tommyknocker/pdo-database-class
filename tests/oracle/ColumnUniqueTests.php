@@ -21,4 +21,9 @@ final class ColumnUniqueTests extends BaseOracleTestCase
     {
         $this->assertTrue(ColumnUniqueSupport::addUniqueColumn(self::$db));
     }
+
+    public function testATextColumnIsEitherEnforcedOrRefusedWithAHint(): void
+    {
+        $this->assertSame('enforced', ColumnUniqueSupport::textUnique(self::$db));
+    }
 }

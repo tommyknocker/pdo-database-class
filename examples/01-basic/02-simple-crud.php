@@ -22,7 +22,7 @@ $schema = $db->schema();
 recreateTable($db, 'users', [
     'id' => $schema->primaryKey(),
     'name' => $schema->text()->notNull(),
-    'email' => $schema->text()->unique(),
+    'email' => $schema->string(190)->unique(),
     'age' => $schema->integer(),
     'created_at' => $schema->datetime()->defaultExpression('CURRENT_TIMESTAMP'),
 ]);

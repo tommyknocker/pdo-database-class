@@ -21,4 +21,9 @@ final class ColumnUniqueTests extends BaseSqliteTestCase
     {
         $this->assertTrue(ColumnUniqueSupport::addUniqueColumn(self::$db), 'SQLite adds the column, then a unique index');
     }
+
+    public function testATextColumnIsEitherEnforcedOrRefusedWithAHint(): void
+    {
+        $this->assertSame('enforced', ColumnUniqueSupport::textUnique(self::$db));
+    }
 }

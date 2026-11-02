@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\dialects\mysqlfamily;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DdlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
@@ -401,12 +402,20 @@ abstract class MySQLFamilyDdlBuilder implements DdlBuilderInterface
         $type = $schema->getType();
 
         $length = $schema->getLength();
-        if (($type === 'TEXT' || $type === 'BLOB' || $type === 'LONGTEXT' || $type === 'MEDIUMTEXT' || $type === 'TINYTEXT')
-            && $schema->getDefaultValue() !== null) {
+        $isLongType = $type === 'TEXT' || $type === 'BLOB' || $type === 'LONGTEXT' || $type === 'MEDIUMTEXT' || $type === 'TINYTEXT';
+        if ($isLongType && $schema->getDefaultValue() !== null) {
             $type = 'VARCHAR';
+            $isLongType = false;
             if ($length === null) {
                 $length = 255;
             }
+        }
+        if ($isLongType && $schema->isUnique() && !$this->allowsUniqueLongText()) {
+            throw new UnsupportedOperationException(
+                "Column '{$name}' is {$type} and cannot be UNIQUE on " . $this->engineLabel()
+                . ': an index on it needs a key length, and a prefix would only make the first characters unique. '
+                . 'Use string(190)->unique() (or another length), or add the index yourself.'
+            );
         }
 
         $typeDef = $type;
@@ -519,6 +528,14 @@ abstract class MySQLFamilyDdlBuilder implements DdlBuilderInterface
             return $this->dialect->quoteStringLiteral($value);
         }
         return $this->dialect->quoteStringLiteral((string)$value);
+    }
+
+    /**
+     * Whether a TEXT or BLOB column may be declared UNIQUE without a key length (MariaDB hashes long values).
+     */
+    protected function allowsUniqueLongText(): bool
+    {
+        return false;
     }
 
     /**

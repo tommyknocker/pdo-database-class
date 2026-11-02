@@ -32,7 +32,7 @@ $driver = getCurrentDriver($db);
 recreateTable($db, 'users', [
     'id' => $schema->primaryKey(),
     'name' => $schema->text()->notNull(),
-    'email' => $schema->text()->unique(),
+    'email' => $schema->string(190)->unique(),
     'age' => $schema->integer(),
     'status' => $schema->text()->defaultValue('active'),
     'meta' => $driver === 'pgsql' ? $schema->json() : $schema->text(), // PostgreSQL uses JSON type

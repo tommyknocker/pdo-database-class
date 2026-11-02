@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\shared;
 
 use tommyknocker\pdodb\exceptions\ConstraintViolationException;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -73,6 +74,41 @@ final class ColumnUniqueSupport
             return false;
         } finally {
             $schema->dropTableIfExists('column_unique_added');
+        }
+    }
+
+    /**
+     * A TEXT column declared unique: the database either enforces it, or the library refuses with a clear error.
+     *
+     * @return string 'enforced' when a duplicate is rejected, 'unsupported' when createTable() refuses the column
+     */
+    public static function textUnique(PdoDb $db): string
+    {
+        $schema = $db->schema();
+        $schema->dropTableIfExists('column_unique_text');
+
+        try {
+            try {
+                $schema->createTable('column_unique_text', ['id' => $schema->primaryKey(), 'body' => $schema->text()->unique()]);
+            } catch (UnsupportedOperationException $e) {
+                if (!str_contains($e->getMessage(), 'string(190)->unique()')) {
+                    throw $e;
+                }
+
+                return 'unsupported';
+            }
+
+            $db->find()->table('column_unique_text')->insert(['body' => 'same']);
+
+            try {
+                $db->find()->table('column_unique_text')->insert(['body' => 'same']);
+            } catch (ConstraintViolationException) {
+                return 'enforced';
+            }
+
+            return 'not enforced';
+        } finally {
+            $schema->dropTableIfExists('column_unique_text');
         }
     }
 }

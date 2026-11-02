@@ -158,7 +158,7 @@ function createPdoDbWithErrorHandling(string $driver, array $config): PdoDb
  *   recreateTable($db, 'users', [
  *       'id' => $schema->primaryKey(),
  *       'name' => $schema->text()->notNull(),
- *       'email' => $schema->text()->unique(),
+ *       'email' => $schema->string(190)->unique(),
  *   ]);
  */
 function recreateTable(PdoDb $db, string $tableName, array $columns, array $options = []): void

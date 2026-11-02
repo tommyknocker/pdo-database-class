@@ -21,4 +21,9 @@ final class ColumnUniqueTests extends BaseMySQLTestCase
     {
         $this->assertTrue(ColumnUniqueSupport::addUniqueColumn(self::$db));
     }
+
+    public function testATextColumnIsEitherEnforcedOrRefusedWithAHint(): void
+    {
+        $this->assertSame('unsupported', ColumnUniqueSupport::textUnique(self::$db));
+    }
 }

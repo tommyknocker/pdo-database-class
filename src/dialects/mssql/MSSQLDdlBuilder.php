@@ -9,6 +9,7 @@ use PDOException;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\builders\DdlBuilderInterface;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
@@ -590,6 +591,15 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         $null = $schema->isNotNull() ? 'NOT NULL' : 'NULL';
         $default = $schema->getDefaultValue();
         $autoIncrement = $schema->isAutoIncrement();
+
+        $isMax = in_array($type, ['TEXT', 'LONGTEXT', 'MEDIUMTEXT', 'TINYTEXT'], true)
+            || (($type === 'NVARCHAR' || $type === 'VARCHAR') && $length === null);
+        if ($isMax && $schema->isUnique()) {
+            throw new UnsupportedOperationException(
+                "Column '{$name}' is NVARCHAR(MAX) and cannot be UNIQUE on SQL Server: such a column cannot be an index key. "
+                . 'Use string(190)->unique() (or another length).'
+            );
+        }
 
         // Build type with length/precision
         // BIT type in MSSQL doesn't accept length specification

@@ -19,7 +19,7 @@ echo "=== INSERT and UPDATE Operations (on $driver) ===\n\n";
 $schema = $db->schema();
 recreateTable($db, 'counters', [
     'id' => $schema->primaryKey(),
-    'name' => $schema->text()->unique(),
+    'name' => $schema->string(190)->unique(),
     'value' => $schema->integer()->defaultValue(0),
     'updated_at' => $schema->datetime(),
 ]);

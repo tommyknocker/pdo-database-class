@@ -11,6 +11,14 @@ use tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlBuilder;
  */
 class MariaDBDdlBuilder extends MySQLFamilyDdlBuilder
 {
+    /**
+     * MariaDB 10.4+ enforces UNIQUE on long values through a hash.
+     */
+    protected function allowsUniqueLongText(): bool
+    {
+        return true;
+    }
+
     protected function engineLabel(): string
     {
         return 'MariaDB';
