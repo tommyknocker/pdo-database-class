@@ -11,6 +11,7 @@ use PDOException;
 use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\cache\CacheManager;
+use tommyknocker\pdodb\cache\QueryCacheKey;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\connection\ConnectionRouter;
 use tommyknocker\pdodb\connection\sharding\ShardRouter;
@@ -1207,6 +1208,13 @@ class QueryBuilder implements QueryBuilderInterface
     }
 
     /**
+
+        // UPDATE/DELETE ... JOIN can change the joined tables too
+        foreach ($this->joinBuilder->getJoins() as $join) {
+            foreach (QueryCacheKey::extractTables($join) as $joined) {
+                $this->cacheManager->invalidateTable($joined);
+            }
+        }
      * Execute MERGE statement (INSERT/UPDATE/DELETE based on match conditions).
      *
      * @param string|Closure(QueryBuilder): void|SelectQueryBuilderInterface $source Source table/subquery for MERGE
