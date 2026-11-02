@@ -126,14 +126,7 @@ final class MySQLConfigStrategy implements ConfigOptimizerStrategy
     {
         // Only memory amounts carry a unit; max_connections, thread_cache_size and table_open_cache are counts
         if (in_array($name, self::MEMORY_SETTINGS, true) && (int)$value > 0) {
-            $bytes = (int)$value;
-            if ($bytes >= 1024 * 1024 * 1024) {
-                $value = (int)($bytes / (1024 * 1024 * 1024)) . 'G';
-            } elseif ($bytes >= 1024 * 1024) {
-                $value = (int)($bytes / (1024 * 1024)) . 'M';
-            } elseif ($bytes >= 1024) {
-                $value = (int)($bytes / 1024) . 'K';
-            }
+            $value = ConfigValue::withUnit((int)$value, ['G' => 1024 ** 3, 'M' => 1024 ** 2, 'K' => 1024]);
         }
 
         return "SET GLOBAL {$name} = {$value};";

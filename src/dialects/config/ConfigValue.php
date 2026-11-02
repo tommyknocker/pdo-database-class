@@ -31,6 +31,28 @@ final class ConfigValue
     }
 
     /**
+     * Write a byte count with the largest unit that represents it exactly, so `1536MB` is not shortened to `1GB`. A
+     * count that is not a whole number of the smallest unit is rounded to it.
+     *
+     * @param int $bytes Amount of memory in bytes
+     * @param array<string, int> $units Suffix to size in bytes, largest first (`['G' => 1073741824, 'M' => 1048576]`)
+     *
+     * @return string For example `1536MB`
+     */
+    public static function withUnit(int $bytes, array $units): string
+    {
+        foreach ($units as $suffix => $size) {
+            if ($bytes % $size === 0) {
+                return intdiv($bytes, $size) . $suffix;
+            }
+        }
+
+        $suffix = array_key_last($units);
+
+        return max(1, (int)round($bytes / $units[$suffix])) . $suffix;
+    }
+
+    /**
      * Normalize value for comparison.
      *
      * @param string|null $value Value to normalize

@@ -130,16 +130,7 @@ final class PostgreSQLConfigStrategy implements ConfigOptimizerStrategy
     {
         // Only memory amounts carry a unit; max_connections, random_page_cost (1.5) and effective_io_concurrency are not bytes
         if (in_array($name, self::MEMORY_SETTINGS, true) && (int)$value > 0) {
-            $bytes = (int)$value;
-            if ($bytes >= 1024 * 1024 * 1024) {
-                $value = (int)($bytes / (1024 * 1024 * 1024)) . 'GB';
-            } elseif ($bytes >= 1024 * 1024) {
-                $value = (int)($bytes / (1024 * 1024)) . 'MB';
-            } elseif ($bytes >= 1024) {
-                $value = (int)($bytes / 1024) . 'kB';
-            } else {
-                $value = $bytes . 'B';
-            }
+            $value = ConfigValue::withUnit((int)$value, ['GB' => 1024 ** 3, 'MB' => 1024 ** 2, 'kB' => 1024]);
         }
 
         return "ALTER SYSTEM SET {$name} = '" . str_replace("'", "''", $value) . "';";

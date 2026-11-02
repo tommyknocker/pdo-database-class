@@ -111,10 +111,7 @@ final class OracleConfigStrategy implements ConfigOptimizerStrategy
     {
         // Only memory amounts carry a unit; processes, sessions and parallel_max_servers are counts
         if (in_array($name, self::MEMORY_SETTINGS, true) && (int)$value > 0) {
-            $bytes = (int)$value;
-            $value = $bytes >= 1024 * 1024 * 1024
-                ? (int)($bytes / (1024 * 1024 * 1024)) . 'G'
-                : (int)($bytes / (1024 * 1024)) . 'M';
+            $value = ConfigValue::withUnit((int)$value, ['G' => 1024 ** 3, 'M' => 1024 ** 2]);
         }
 
         // Oracle uses ALTER SYSTEM for most parameters

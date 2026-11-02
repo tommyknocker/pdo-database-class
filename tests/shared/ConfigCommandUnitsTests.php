@@ -67,4 +67,21 @@ final class ConfigCommandUnitsTests extends TestCase
             (new PostgreSQLConfigStrategy())->command('log_line_prefix', "a'b")
         );
     }
+
+    public function testAFractionalAmountIsNeverRoundedDown(): void
+    {
+        $bytes = (string)(int)(1.5 * self::GIB);
+
+        $this->assertSame("ALTER SYSTEM SET shared_buffers = '1536MB';", (new PostgreSQLConfigStrategy())->command('shared_buffers', $bytes));
+        $this->assertSame('SET GLOBAL innodb_buffer_pool_size = 1536M;', (new MySQLConfigStrategy())->command('innodb_buffer_pool_size', $bytes));
+        $this->assertSame('ALTER SYSTEM SET sga_target = 1536M SCOPE = SPFILE;', (new OracleConfigStrategy())->command('sga_target', $bytes));
+        $this->assertSame('SET GLOBAL innodb_buffer_pool_size = 4608M;', (new MySQLConfigStrategy())->command('innodb_buffer_pool_size', '4831838208'));
+        $this->assertSame('ALTER SYSTEM SET sga_target = 3994M SCOPE = SPFILE;', (new OracleConfigStrategy())->command('sga_target', '4188012544'));
+    }
+
+    public function testAnAmountThatIsNotAWholeUnitIsRoundedToTheSmallestUnit(): void
+    {
+        $this->assertSame("ALTER SYSTEM SET work_mem = '5kB';", (new PostgreSQLConfigStrategy())->command('work_mem', '5000'));
+        $this->assertSame('SET GLOBAL tmp_table_size = 5K;', (new MySQLConfigStrategy())->command('tmp_table_size', '5000'));
+    }
 }

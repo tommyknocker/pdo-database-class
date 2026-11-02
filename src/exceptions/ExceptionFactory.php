@@ -90,13 +90,18 @@ class ExceptionFactory
         string $driver = '',
         string $nativeCode = ''
     ): ErrorDetectionStrategyInterface {
-        $messageLower = strtolower($message);
-
+        // The driver's own error code is exact; the words of a message are not (a table named `transactions` or a
+        // constraint called `lock_owner_fk` says nothing about the kind of error), so every strategy gets to claim the
+        // native code before any of them reads the message.
         foreach (self::$strategies as $strategy) {
-            if ($strategy->isMatch($code, $messageLower)) {
+            if ($strategy instanceof AbstractErrorDetectionStrategy && $strategy->isNativeCodeMatch($driver, $nativeCode)) {
                 return $strategy;
             }
-            if ($strategy instanceof AbstractErrorDetectionStrategy && $strategy->isNativeCodeMatch($driver, $nativeCode)) {
+        }
+
+        $messageLower = strtolower($message);
+        foreach (self::$strategies as $strategy) {
+            if ($strategy->isMatch($code, $messageLower)) {
                 return $strategy;
             }
         }
