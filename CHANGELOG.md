@@ -7,13 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A step-by-step guide to reliable events between services (outbox, worker, inbox), an end-to-end example that runs on every database, and a signed webhook publisher with a matching receiver.
+
+### Fixed
+- The compiled-query cache ignored the values of `limit()` and `offset()`: with a PSR-16 cache configured, the second run of a query that differed only in its limit or offset returned the rows of the first (for example `paginate(3, 3)` returned page 1). The values are now part of the cache key.
+- Cursor pagination (`cursorPaginate()`) and `batch()` / `each()` with a `key` threw on columns qualified with a table alias such as `o.created_at`; they now page through every row.
+- A write that joins another table (`UPDATE ... JOIN`, `DELETE ... JOIN`) now also drops the cached reads of the joined tables; before, they stayed stale until they expired.
+- `paginate()` threw `Cannot use object of type stdClass as array` after `asObject()`.
+- `limit()` and `offset()` are restored when building a `UNION` query throws.
+- `insert()` returned a wrong id in two cases. On Oracle it always returned `1`, because the id was looked up in a sequence named `<table>_seq` while the schema builder creates `<table>_<column>_seq` (and the lookup quoted the name in the wrong case); it now returns the real id (from the table's trigger, identity column or sequence default), or the key the insert supplied. On PostgreSQL it used `lastval()`, the last sequence value of the whole session, so an insert that supplied its own key returned the sequence's last value and an insert into a table without a serial key returned the id of an earlier insert into another table; it now reads the sequence of the inserted table only, including a hand-made `DEFAULT nextval()`. A row without any generated key still reports `1`.
+- `insert()` documents what it returns: the generated or supplied numeric key, and `1` when the row has no numeric key to report.
+
 ## [3.0.0] - 2026-11-02
 
 This is a major release. Read [UPGRADE.md](UPGRADE.md) before updating: it lists every change that can alter results or
 throw where 2.x worked, and the changes needed by custom dialects.
 
 ### Added
-- A step-by-step guide to reliable events between services (outbox, worker, inbox), an end-to-end example that runs on every database, and a signed webhook publisher with a matching receiver.
 - ORM: a model remembers which key a mapped attribute name resolved to (Oracle returns upper-case column names, so `$model->user_name` has to find `USER_NAME`), instead of scanning the attributes on every read.
 - AI: requests are repeated when they fail in a way that is likely to pass (HTTP 429, 408, 5xx, or no connection) with exponential waits; `retries` (`PDODB_AI_RETRIES`, default 2, 0 to 10) sets how often, and `RetryingAiTransport` wraps any `AiTransport`. Other failures are thrown at once. Token usage: `AiAnalysisService::getLastUsage()` and `getTotalUsage()` return an `AiUsage` (input, output and total tokens; null when the provider does not report them) for OpenAI-style APIs, Anthropic, Google, Ollama and Yandex.
 - Outbox: `add()` takes `headers` (message information kept apart from the payload, read as `$message->headers`) and a `partitionKey`: messages with the same key are delivered one at a time in the order they were added (a message waiting for a retry holds its key back; a failed one does not). Message ids are now time-ordered UUID v7 (`Uuid::v7()`, strictly increasing within a process) so the order is defined. `Outbox` accepts an `OutboxSerializer` for the payload (output must be valid JSON), and the worker sends `OutboxMessageAddedEvent`, `OutboxMessagePublishedEvent`, `OutboxMessageRetryEvent` and `OutboxMessageFailedEvent` to the connection's event dispatcher. The outbox table gets the columns `headers` and `partition_key` and an index on `(partition_key, status, id)`; `ensureSchema()` adds the two columns to a table made by a pre-release build and keeps its rows.
@@ -96,7 +107,6 @@ throw where 2.x worked, and the changes needed by custom dialects.
 - Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.
 
 ### Fixed
-- `insert()` returned a wrong id in two cases. On Oracle it always returned `1`, because the id was looked up in a sequence named `<table>_seq` while the schema builder creates `<table>_<column>_seq` (and the lookup quoted the name in the wrong case); it now returns the real id, or the key the insert supplied. On PostgreSQL it used `lastval()`, the last sequence value of the whole session, so an insert that supplied its own key returned the sequence's last value and an insert into a table without a serial key returned the id of an earlier insert into another table; it now reads the sequence of the inserted table only. A row without any generated key still reports `1`.
 - The error-log redaction also covers values in the first line of driver messages: PostgreSQL `invalid input syntax for type integer: "..."`, `value "..." is out of range`, enum and array literals, and `CONTEXT`/`STATEMENT` lines; MySQL `Truncated incorrect DOUBLE value: '...'`; SQL Server `Conversion failed when converting the nvarchar value '...'`, overflow and `Truncated value: '...'`. Names of tables, columns and constraints stay.
 - `Outbox::ensureSchema()` also creates the partition index on an older MySQL/MariaDB outbox table (those databases declare it inside `CREATE TABLE`, so the idempotent index statement other databases use does not exist); new `DialectMessagingInterface::outboxMissingIndexSql()`.
 - `pdodb optimize analyze` on Oracle asks for the foreign keys of all tables in one statement instead of one per table (each `USER_CONSTRAINTS` query costs about a second, so 99 tables took minutes); new `DialectCatalogInterface::buildShowAllForeignKeysSql()`, null where per-table queries are fine. The per-table foreign key query uses joins and a table filter that can use the dictionary index.
