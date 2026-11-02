@@ -189,16 +189,17 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     {
         $colQuoted = $this->quoteIdentifier($col);
 
-        if ($path === null) {
-            // For whole column: use json_array_length for arrays, approximate for objects
-            return "COALESCE(json_array_length({$colQuoted}), 0)";
+        $target = $colQuoted;
+        if ($path !== null) {
+            $parts = $this->normalizeJsonPath($path);
+            $jsonPath = $this->buildJsonPathString($parts);
+            $target = "json_extract({$colQuoted}, '{$jsonPath}')";
         }
 
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-
-        $extracted = "json_extract({$colQuoted}, '{$jsonPath}')";
-        return "COALESCE(json_array_length({$extracted}), 0)";
+        // Like MySQL: elements of an array, keys of an object, 1 for a scalar; 0 when there is nothing
+        return "CASE json_type({$target}) WHEN 'array' THEN json_array_length({$target}) "
+            . "WHEN 'object' THEN (SELECT COUNT(*) FROM json_each({$target})) "
+            . "WHEN NULL THEN 0 ELSE CASE WHEN {$target} IS NULL THEN 0 ELSE 1 END END";
     }
 
     /**
@@ -587,11 +588,11 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     public function formatFulltextMatch(string|array $columns, string $searchTerm, ?string $mode = null, bool $withQueryExpansion = false): array|string
     {
         $cols = is_array($columns) ? $columns : [$columns];
-        $quotedCols = array_map([$this->dialect, 'quoteIdentifier'], $cols);
-        $colList = implode(', ', $quotedCols);
-
         $ph = ':fulltext_search_term';
-        $sql = "$colList MATCH $ph";
+
+        // "a, b MATCH x" is not valid SQLite. A row matches when any of the columns does, as with MySQL's MATCH (a, b)
+        $conditions = array_map(fn (string $col): string => $this->dialect->quoteIdentifier($col) . " MATCH $ph", $cols);
+        $sql = count($conditions) === 1 ? $conditions[0] : '(' . implode(' OR ', $conditions) . ')';
 
         return [$sql, [$ph => $searchTerm]];
     }

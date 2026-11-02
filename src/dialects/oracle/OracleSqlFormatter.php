@@ -297,14 +297,17 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     {
         $colQuoted = $this->quoteIdentifier($col);
 
-        if ($path === null) {
-            // Oracle doesn't have a direct JSON_LENGTH, use JSON_TABLE
-            return "(SELECT COUNT(*) FROM JSON_TABLE($colQuoted, '$[*]' COLUMNS (val VARCHAR2(4000) PATH '$')))";
+        $jsonPath = '$';
+        if ($path !== null) {
+            $jsonPath = $this->buildJsonPathString($this->normalizeJsonPath($path));
         }
 
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        return "(SELECT COUNT(*) FROM JSON_TABLE($colQuoted, '{$jsonPath}[*]' COLUMNS (val VARCHAR2(4000) PATH '$')))";
+        // Oracle has no JSON_LENGTH: ask for the type, then count array elements or object members with JSON_TABLE
+        $type = "JSON_VALUE($colQuoted, '{$jsonPath}.type()')";
+        $count = static fn (string $step): string => "(SELECT COUNT(*) FROM JSON_TABLE($colQuoted, '{$jsonPath}{$step}' COLUMNS (val VARCHAR2(4000) PATH '$')))";
+
+        return "CASE {$type} WHEN 'array' THEN {$count('[*]')} WHEN 'object' THEN {$count('.*')} "
+            . "ELSE CASE WHEN {$type} IS NULL THEN 0 ELSE 1 END END";
     }
 
     /**

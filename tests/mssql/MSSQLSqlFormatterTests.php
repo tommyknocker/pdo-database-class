@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mssql;
 
 use tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -306,26 +307,40 @@ final class MSSQLSqlFormatterTests extends BaseMSSQLTestCase
 
     public function testFormatRegexpMatch(): void
     {
-        // MSSQL uses dbo.regexp_match
-        $result = $this->formatter->formatRegexpMatch('column', 'pattern');
-        $this->assertStringContainsString('regexp_match', $result);
-        $this->assertStringContainsString('column', $result);
+        // SQL Server has no regular expressions before 2025: the pattern becomes a LIKE pattern
+        $this->assertSame("(column LIKE '%pattern%')", $this->formatter->formatRegexpMatch('column', 'pattern'));
+        $this->assertSame("(column LIKE 'ab_c')", $this->formatter->formatRegexpMatch('column', '^ab.c$'));
+    }
+
+    public function testFormatRegexpMatchRefusesWhatLikeCannotDo(): void
+    {
+        $this->expectException(UnsupportedOperationException::class);
+        $this->formatter->formatRegexpMatch('column', 'a+b');
     }
 
     public function testFormatRegexpReplace(): void
     {
-        // MSSQL uses dbo.regexp_replace
-        $result = $this->formatter->formatRegexpReplace('column', 'pattern', 'replacement');
-        $this->assertStringContainsString('regexp_replace', $result);
-        $this->assertStringContainsString('column', $result);
+        $this->assertSame("REPLACE(column, 'pattern', 'replacement')", $this->formatter->formatRegexpReplace('column', 'pattern', 'replacement'));
+    }
+
+    public function testFormatRegexpReplaceRefusesAPattern(): void
+    {
+        $this->expectException(UnsupportedOperationException::class);
+        $this->formatter->formatRegexpReplace('column', '[0-9]', '#');
     }
 
     public function testFormatRegexpExtract(): void
     {
-        // MSSQL uses dbo.regexp_extract
-        $result = $this->formatter->formatRegexpExtract('column', 'pattern');
-        $this->assertStringContainsString('regexp_extract', $result);
-        $this->assertStringContainsString('column', $result);
+        $this->assertSame(
+            "CASE WHEN column LIKE '%pattern%' THEN 'pattern' ELSE NULL END",
+            $this->formatter->formatRegexpExtract('column', 'pattern')
+        );
+    }
+
+    public function testFormatRegexpExtractRefusesGroupsAndPatterns(): void
+    {
+        $this->expectException(UnsupportedOperationException::class);
+        $this->formatter->formatRegexpExtract('column', '[0-9]');
     }
 
     public function testFormatFulltextMatch(): void

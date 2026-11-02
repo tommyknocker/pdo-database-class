@@ -278,16 +278,17 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     {
         $colQuoted = $this->quoteIdentifier($col);
 
-        if ($path === null) {
-            // For whole column, use jsonb_array_length for arrays, return 0 for others
-            return "CASE WHEN jsonb_typeof({$colQuoted}::jsonb) = 'array' THEN jsonb_array_length({$colQuoted}::jsonb) ELSE 0 END";
+        $target = "{$colQuoted}::jsonb";
+        if ($path !== null) {
+            $parts = $this->normalizeJsonPath($path);
+            $arr = $this->buildPostgreSqlJsonPath($parts);
+            $target = "({$colQuoted}::jsonb #> {$arr})";
         }
 
-        $parts = $this->normalizeJsonPath($path);
-        $arr = $this->buildPostgreSqlJsonPath($parts);
-        $extracted = "{$colQuoted}::jsonb #> {$arr}";
-
-        return "CASE WHEN jsonb_typeof({$extracted}) = 'array' THEN jsonb_array_length({$extracted}) ELSE 0 END";
+        // Like MySQL: elements of an array, keys of an object, 1 for a scalar; 0 when there is nothing
+        return "CASE jsonb_typeof({$target}) WHEN 'array' THEN jsonb_array_length({$target}) "
+            . "WHEN 'object' THEN (SELECT COUNT(*) FROM jsonb_object_keys({$target})) "
+            . "ELSE CASE WHEN {$target} IS NULL THEN 0 ELSE 1 END END";
     }
 
     /**

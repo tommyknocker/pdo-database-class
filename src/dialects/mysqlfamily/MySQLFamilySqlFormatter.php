@@ -352,8 +352,9 @@ abstract class MySQLFamilySqlFormatter extends SqlFormatterAbstract
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
     {
         $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        return "($val REGEXP '$pat')";
+        // A backslash is an escape character in MySQL string literals, so it has to be quoted like any other value
+        $pat = $this->dialect->quoteStringLiteral($pattern);
+        return "($val REGEXP $pat)";
     }
 
     /**
@@ -362,8 +363,9 @@ abstract class MySQLFamilySqlFormatter extends SqlFormatterAbstract
     public function formatRegexpLike(string|RawValue $value, string $pattern): string
     {
         $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        return "($val REGEXP '$pat')";
+        // A backslash is an escape character in MySQL string literals, so it has to be quoted like any other value
+        $pat = $this->dialect->quoteStringLiteral($pattern);
+        return "($val REGEXP $pat)";
     }
 
     /**
@@ -372,9 +374,9 @@ abstract class MySQLFamilySqlFormatter extends SqlFormatterAbstract
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        $rep = str_replace("'", "''", $replacement);
-        return "REGEXP_REPLACE($val, '$pat', '$rep')";
+        $pat = $this->dialect->quoteStringLiteral($pattern);
+        $rep = $this->dialect->quoteStringLiteral($replacement);
+        return "REGEXP_REPLACE($val, $pat, $rep)";
     }
 
     /**
@@ -383,8 +385,8 @@ abstract class MySQLFamilySqlFormatter extends SqlFormatterAbstract
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
     {
         $val = $this->resolveValue($value);
-        $pat = str_replace("'", "''", $pattern);
-        return "REGEXP_SUBSTR($val, '$pat')";
+        $pat = $this->dialect->quoteStringLiteral($pattern);
+        return "REGEXP_SUBSTR($val, $pat)";
     }
 
     /**

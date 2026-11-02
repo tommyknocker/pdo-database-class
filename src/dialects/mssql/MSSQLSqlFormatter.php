@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects\mssql;
 
 use PDO;
 use tommyknocker\pdodb\dialects\formatters\SqlFormatterAbstract;
+use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
 /**
@@ -511,13 +512,9 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
     {
         $val = $this->resolveValue($value);
-        // Use registered user-defined function
-        // PATINDEX pattern: convert basic regex patterns to SQL Server patterns
-        // Note: This is a simplified conversion - full regex requires CLR
-        $sqlPattern = $this->convertRegexToSqlPattern($pattern);
-        $sqlPatternEscaped = $this->dialect->quoteStringLiteral('%' . $sqlPattern . '%');
-        // PATINDEX searches anywhere, so add % around pattern
-        return "(dbo.regexp_match($val, {$sqlPatternEscaped}) = 1)";
+        $translated = MSSQLRegexTranslator::translate($pattern);
+
+        return '(' . $val . ' LIKE ' . $this->patternLiteral($translated['like']) . ')';
     }
 
     /**
@@ -525,35 +522,58 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
      */
     public function formatRegexpLike(string|RawValue $value, string $pattern): string
     {
-        $val = $this->resolveValue($value);
-        // Use registered user-defined function
-        $sqlPattern = $this->convertRegexToSqlPattern($pattern);
-        $sqlPatternEscaped = $this->dialect->quoteStringLiteral('%' . $sqlPattern . '%');
-        return "(dbo.regexp_match($val, {$sqlPatternEscaped}) = 1)";
+        return $this->formatRegexpMatch($value, $pattern);
     }
 
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         $val = $this->resolveValue($value);
-        $rep = $this->dialect->quoteStringLiteral($replacement);
-        // Use registered user-defined function
-        // Convert regex pattern to SQL Server pattern
-        $sqlPattern = $this->convertRegexToSqlPattern($pattern);
-        $sqlPatternEscaped = $this->dialect->quoteStringLiteral($sqlPattern);
-        // For REPLACE, use exact pattern match (no % wildcards)
-        return "dbo.regexp_replace($val, {$sqlPatternEscaped}, {$rep})";
+        $literal = $this->literalOnly($pattern, 'Db::regexpReplace()');
+
+        return 'REPLACE(' . $val . ', ' . $this->patternLiteral($literal) . ', ' . $this->patternLiteral($replacement) . ')';
     }
 
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
     {
+        if ($groupIndex !== null && $groupIndex > 0) {
+            throw new UnsupportedOperationException('Capture groups need regular expressions, which SQL Server before 2025 does not have.');
+        }
         $val = $this->resolveValue($value);
-        $groupIdx = $groupIndex ?? 0;
-        // Use registered user-defined function
-        // Convert regex pattern to SQL Server pattern
-        $sqlPattern = $this->convertRegexToSqlPattern($pattern);
-        $sqlPatternEscaped = $this->dialect->quoteStringLiteral('%' . $sqlPattern . '%');
-        // PATINDEX searches anywhere, so add % around pattern
-        return "dbo.regexp_extract($val, {$sqlPatternEscaped}, $groupIdx)";
+        $translated = MSSQLRegexTranslator::translate($pattern);
+        $literal = $translated['literal'];
+        if ($literal === null) {
+            throw new UnsupportedOperationException(
+                "Db::regexpExtract() on SQL Server before 2025 can only look for a fixed text, not the pattern '{$pattern}'."
+            );
+        }
+
+        return 'CASE WHEN ' . $val . ' LIKE ' . $this->patternLiteral($translated['like']) . ' THEN '
+            . $this->patternLiteral($literal) . ' ELSE NULL END';
+    }
+
+    /**
+     * The text a pattern matches when it is a plain literal.
+     */
+    private function literalOnly(string $pattern, string $helper): string
+    {
+        $literal = MSSQLRegexTranslator::translate($pattern)['literal'];
+        if ($literal === null) {
+            throw new UnsupportedOperationException(
+                "{$helper} on SQL Server before 2025 can only replace a fixed text, not the pattern '{$pattern}'."
+            );
+        }
+
+        return $literal;
+    }
+
+    /**
+     * A string literal; text outside ASCII gets the N prefix so it is not converted through the code page.
+     */
+    private function patternLiteral(string $text): string
+    {
+        $quoted = $this->dialect->quoteStringLiteral($text);
+
+        return preg_match('/[^\x00-\x7F]/', $text) === 1 ? 'N' . $quoted : $quoted;
     }
 
     public function formatUnionSelect(string $selectSql, bool $isBaseQuery = false): string
@@ -659,141 +679,14 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
-     * Register REGEXP functions for MSSQL using SQL Server user-defined functions.
-     * Creates T-SQL functions that use PATINDEX and string manipulation for regex matching.
-     *
-     * Note: This is a basic implementation using PATINDEX. PATINDEX supports SQL Server
-     * patterns (%, _, [], [^]), not full regex. For full regex support, SQL Server CLR
-     * functions should be used.
+     * Nothing to register: regular expressions are translated to LIKE patterns in the query itself
+     * ({@see MSSQLRegexTranslator}), so no functions are created in the database.
      *
      * @param PDO $pdo The PDO instance
-     * @param bool $force Force re-registration even if functions exist
+     * @param bool $force Unused
      */
     public function registerRegexpFunctions(PDO $pdo, bool $force = false): void
     {
-        // Check if REGEXP functions are already available (unless forced)
-        if (!$force) {
-            try {
-                // Check if functions exist in sys.objects
-                $stmt = $pdo->query("
-                    SELECT COUNT(*) as cnt
-                    FROM sys.objects
-                    WHERE name IN ('regexp_match', 'regexp_replace', 'regexp_extract')
-                    AND type = 'FN'
-                    AND schema_id = SCHEMA_ID('dbo')
-                ");
-                $result = $stmt !== false ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
-                if ($result && (int)$result['cnt'] === 3) {
-                    // Functions are already available, skip registration
-                    return;
-                }
-            } catch (\PDOException $e) {
-                // Error checking, proceed with registration
-            }
-        }
-
-        // Create user-defined functions using T-SQL
-        // These functions use PATINDEX for basic pattern matching
-
-        // Function for regexp_match (returns 1 if matches, 0 otherwise)
-        // DROP and CREATE must be separate statements
-        try {
-            $pdo->exec("IF OBJECT_ID('dbo.regexp_match', 'FN') IS NOT NULL DROP FUNCTION dbo.regexp_match");
-        } catch (\PDOException $e) {
-            // Ignore errors if function doesn't exist
-        }
-        $pdo->exec('
-            CREATE FUNCTION dbo.regexp_match(@subject NVARCHAR(MAX), @pattern NVARCHAR(MAX))
-            RETURNS BIT
-            WITH EXECUTE AS CALLER
-            AS
-            BEGIN
-                -- Use PATINDEX for basic pattern matching
-                -- Note: PATINDEX supports SQL Server patterns, not full regex
-                -- For full regex support, SQL Server CLR functions should be used
-                IF PATINDEX(@pattern, @subject) > 0
-                    RETURN 1;
-                RETURN 0;
-            END
-        ');
-
-        // Function for regexp_replace
-        try {
-            $pdo->exec("IF OBJECT_ID('dbo.regexp_replace', 'FN') IS NOT NULL DROP FUNCTION dbo.regexp_replace");
-        } catch (\PDOException $e) {
-            // Ignore errors if function doesn't exist
-        }
-        $pdo->exec('
-            CREATE FUNCTION dbo.regexp_replace(@subject NVARCHAR(MAX), @pattern NVARCHAR(MAX), @replacement NVARCHAR(MAX))
-            RETURNS NVARCHAR(MAX)
-            WITH EXECUTE AS CALLER
-            AS
-            BEGIN
-                -- Basic replacement using REPLACE
-                -- For complex regex, use CLR functions
-                RETURN REPLACE(@subject, @pattern, @replacement);
-            END
-        ');
-
-        // Function for regexp_extract
-        try {
-            $pdo->exec("IF OBJECT_ID('dbo.regexp_extract', 'FN') IS NOT NULL DROP FUNCTION dbo.regexp_extract");
-        } catch (\PDOException $e) {
-            // Ignore errors if function doesn't exist
-        }
-        $pdo->exec("
-            CREATE FUNCTION dbo.regexp_extract(@subject NVARCHAR(MAX), @pattern NVARCHAR(MAX), @groupIndex INT = 0)
-            RETURNS NVARCHAR(MAX)
-            WITH EXECUTE AS CALLER
-            AS
-            BEGIN
-                -- Basic extraction using PATINDEX and SUBSTRING
-                DECLARE @pos INT = PATINDEX(@pattern, @subject);
-                IF @pos > 0
-                    RETURN SUBSTRING(@subject, @pos, LEN(@subject));
-                RETURN '';
-            END
-        ");
-    }
-
-    /**
-     * Convert basic regex patterns to SQL Server PATINDEX patterns.
-     * This is a simplified conversion - full regex requires CLR functions.
-     *
-     * @param string $pattern Regex pattern
-     *
-     * @return string SQL Server pattern
-     */
-    protected function convertRegexToSqlPattern(string $pattern): string
-    {
-        // Basic conversions for common regex patterns
-        // Note: This is limited - full regex support requires CLR
-        $sqlPattern = $pattern;
-
-        // Escape SQL Server special characters first
-        $sqlPattern = str_replace('[', '[[]', $sqlPattern);
-        $sqlPattern = str_replace(']', '[]]', $sqlPattern);
-        $sqlPattern = str_replace('%', '[%]', $sqlPattern);
-        $sqlPattern = str_replace('_', '[_]', $sqlPattern);
-
-        // Convert regex patterns to SQL Server patterns
-        // . -> _ (any single character)
-        $sqlPattern = str_replace('.', '_', $sqlPattern);
-        // * -> % (zero or more characters) - but only if not already escaped
-        $replaced = preg_replace('/(?<!\[)(?<!\[\[)\*(?!\])/', '%', $sqlPattern);
-        $sqlPattern = $replaced !== null ? $replaced : $sqlPattern;
-        // + -> % (one or more) - simplified
-        $replaced = preg_replace('/(?<!\[)(?<!\[\[)\+(?!\])/', '%', $sqlPattern);
-        $sqlPattern = $replaced !== null ? $replaced : $sqlPattern;
-        // ? -> _ (zero or one) - simplified
-        $replaced = preg_replace('/(?<!\[)(?<!\[\[)\?(?!\])/', '_', $sqlPattern);
-        $sqlPattern = $replaced !== null ? $replaced : $sqlPattern;
-
-        // Remove regex anchors (^ and $) as PATINDEX searches anywhere
-        $sqlPattern = str_replace('^', '', $sqlPattern);
-        $sqlPattern = str_replace('$', '', $sqlPattern);
-
-        return $sqlPattern;
     }
 
     /**

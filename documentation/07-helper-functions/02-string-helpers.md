@@ -306,6 +306,22 @@ $users = $db->find()
     ->get();
 ```
 
+### Regular Expressions on SQL Server
+
+SQL Server before 2025 has no regular expressions, only `LIKE` patterns. PDOdb translates the part of the syntax that
+`LIKE` can express exactly and throws `UnsupportedOperationException` for everything else, so a pattern never matches
+differently than it does on the other databases:
+
+| Supported | Not supported (throws) |
+|---|---|
+| literal text, `\.` and other escaped punctuation | `*` `+` `?` `{n,m}` after anything but `.` |
+| `^` at the start, `$` at the end | `\|` alternation, `( )` groups, capture groups |
+| `.` (one character), `.*`, `.+` | `\w` `\s` `\b` |
+| `[abc]`, `[a-z]`, `[^0-9]`, `\d` | escapes inside `[...]` |
+
+`Db::regexpReplace()` and `Db::regexpExtract()` accept only fixed text on SQL Server (no classes, no groups).
+Matching follows the column collation, so it is case-insensitive with the default SQL Server collations.
+
 ## Db::regexpReplace() - Pattern-Based Replacement
 
 Replace all occurrences of a pattern with a replacement string:
