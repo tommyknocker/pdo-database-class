@@ -18,6 +18,9 @@ final class UserCommandCliTests extends BaseMySQLTestCase
         putenv('PDODB_USERNAME=' . self::DB_USER);
         putenv('PDODB_PASSWORD=' . self::DB_PASSWORD);
         putenv('PDODB_NON_INTERACTIVE=1');
+        // The CLI reports a failure as a message and exit code 1; with PDODB_DEBUG the exception propagates, which
+        // is how this test tells "the test user may not create users" (skip) from a real failure.
+        putenv('PDODB_DEBUG=1');
 
         $app = new Application();
         ob_start();
@@ -28,10 +31,12 @@ final class UserCommandCliTests extends BaseMySQLTestCase
         } catch (AuthenticationException $e) {
             ob_end_clean();
             // Skip test if user doesn't have CREATE USER privilege
+            $this->restoreEnvironment();
             $this->markTestSkipped('User does not have CREATE USER privilege: ' . $e->getMessage());
             return;
         } catch (\Throwable $e) {
             ob_end_clean();
+            $this->restoreEnvironment();
 
             throw $e;
         }
@@ -48,5 +53,15 @@ final class UserCommandCliTests extends BaseMySQLTestCase
             // Ignore cleanup errors
         }
         ob_end_clean();
+
+        $this->restoreEnvironment();
+    }
+
+    private function restoreEnvironment(): void
+    {
+        // Clean up environment variables to avoid affecting subsequent tests
+        foreach (['PDODB_DRIVER', 'PDODB_HOST', 'PDODB_PORT', 'PDODB_DATABASE', 'PDODB_USERNAME', 'PDODB_PASSWORD', 'PDODB_NON_INTERACTIVE', 'PDODB_DEBUG'] as $name) {
+            putenv($name);
+        }
     }
 }
