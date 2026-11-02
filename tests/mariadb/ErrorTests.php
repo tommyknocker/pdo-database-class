@@ -7,7 +7,6 @@ namespace tommyknocker\pdodb\tests\mariadb;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PDOException;
-use StdClass;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -50,7 +49,7 @@ final class ErrorTests extends BaseMariaDBTestCase
                 assert(is_array($context));
                 if (($rec['message'] ?? '') === 'operation.error'
                 && ($context['operation'] ?? '') === 'prepare'
-                && ($context['exception'] ?? new StdClass()) instanceof PDOException
+                && is_a($context['exception_class'] ?? '', PDOException::class, true)
                 ) {
                     $hasOpError = true;
                 }

@@ -22,6 +22,11 @@ catch (\tommyknocker\pdodb\exceptions\DatabaseException $e) {
 
 `toArray()`, `getContext()`, `getQueryContext()`, `getDescription()` and debug output retain detailed information for compatibility and may contain secrets. Name-based masking cannot reliably identify positional or generated parameters. Use detailed output only in a trusted environment.
 
+The library's own PSR-3 error logs follow the same rule. `operation.error` and the connection retry logs carry the
+exception class, code and message with data values removed (`DETAIL: Key (email)=(...)`, `Duplicate entry '...'`
+become `[redacted]`), not the exception object. The statement text is logged with its placeholders, never the bound
+values.
+
 ## QueryBuilder Debug Information
 
 The `QueryBuilder::getDebugInfo()` method returns comprehensive information about the current query state:

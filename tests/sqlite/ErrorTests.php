@@ -32,7 +32,7 @@ final class ErrorTests extends BaseSqliteTestCase
             foreach ($testHandler->getRecords() as $rec) {
                 if (($rec['message'] ?? '') === 'operation.error'
                 && ($rec['context']['operation'] ?? '') === 'prepare'
-                && ($rec['context']['exception'] ?? new \StdClass()) instanceof \PDOException
+                && is_a($rec['context']['exception_class'] ?? '', \PDOException::class, true)
                 ) {
                     $hasOpError = true;
                 }

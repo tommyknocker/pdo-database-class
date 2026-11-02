@@ -64,7 +64,10 @@ trait ConnectionLogger
             'operation' => $operation,
             'driver' => $this->getDriverName(),
             'timestamp' => microtime(true),
-            'exception' => $exception,
+            // Not the exception itself: its message can hold the values of the failed statement
+            'exception_class' => $exception::class,
+            'exception_code' => $exception->getCode(),
+            'exception_message' => ErrorMessageRedactor::message($exception),
         ], $sql ? ['sql' => $sql] : [], $context));
     }
 

@@ -43,7 +43,7 @@ final class ErrorTests extends BasePostgreSQLTestCase
             foreach ($testHandler->getRecords() as $rec) {
                 if (($rec['message'] ?? '') === 'operation.error'
                 && ($rec['context']['operation'] ?? '') === 'execute'
-                && ($rec['context']['exception'] ?? new \StdClass()) instanceof \PDOException
+                && is_a($rec['context']['exception_class'] ?? '', \PDOException::class, true)
                 ) {
                     $hasOpError = true;
                 }
