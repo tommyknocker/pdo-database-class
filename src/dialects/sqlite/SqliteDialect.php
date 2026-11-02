@@ -1652,4 +1652,13 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
 
         return array_values(array_map(static fn (array $row): string => (string)$row['name'], $rows));
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function addsUniqueColumnInline(): bool
+    {
+        // ALTER TABLE ... ADD COLUMN ... UNIQUE is rejected by SQLite
+        return false;
+    }
 }

@@ -306,4 +306,12 @@ trait DdlDefaults
         // Default implementation does nothing
         // Dialects can override to drop existing objects (e.g., sequences, triggers)
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function addsUniqueColumnInline(): bool
+    {
+        return true;
+    }
 }

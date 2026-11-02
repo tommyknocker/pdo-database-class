@@ -441,6 +441,10 @@ abstract class MySQLFamilyDdlBuilder implements DdlBuilderInterface
             }
         }
 
+        if ($schema->isUnique()) {
+            $parts[] = 'UNIQUE';
+        }
+
         if ($schema->getComment() !== null) {
             $comment = $this->dialect->quoteStringLiteral($schema->getComment());
             $parts[] = "COMMENT {$comment}";

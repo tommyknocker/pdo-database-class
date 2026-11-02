@@ -103,7 +103,7 @@ class SQLiteDdlBuilder implements DdlBuilderInterface
         ColumnSchema $schema
     ): string {
         $tableQuoted = $this->quoteTable($table);
-        $columnDef = $this->formatColumnDefinition($column, $schema);
+        $columnDef = $this->columnDefinition($column, $schema, false);
         // SQLite doesn't support FIRST/AFTER in ALTER TABLE ADD COLUMN
         return "ALTER TABLE {$tableQuoted} ADD COLUMN {$columnDef}";
     }
@@ -393,6 +393,14 @@ class SQLiteDdlBuilder implements DdlBuilderInterface
      */
     public function formatColumnDefinition(string $name, ColumnSchema $schema): string
     {
+        return $this->columnDefinition($name, $schema, true);
+    }
+
+    /**
+     * @param bool $inlineUnique Write UNIQUE after the definition (CREATE TABLE only, not ALTER TABLE ADD COLUMN)
+     */
+    protected function columnDefinition(string $name, ColumnSchema $schema, bool $inlineUnique): string
+    {
         $nameQuoted = $this->quoteIdentifier($name);
         $type = $schema->getType();
 
@@ -451,8 +459,10 @@ class SQLiteDdlBuilder implements DdlBuilderInterface
             }
         }
 
-        // UNIQUE is handled separately (not in column definition)
-        // It's created via CREATE INDEX or table constraint
+        // SQLite rejects ADD COLUMN ... UNIQUE, so only a column created with its table carries the constraint inline
+        if ($schema->isUnique() && $inlineUnique) {
+            $parts[] = 'UNIQUE';
+        }
 
         return implode(' ', $parts);
     }

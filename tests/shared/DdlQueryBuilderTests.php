@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\shared;
 
+use tommyknocker\pdodb\exceptions\ConstraintViolationException;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\PdoDb;
@@ -1198,16 +1199,18 @@ class DdlQueryBuilderTests extends BaseSharedTestCase
         ]);
 
         // Try to insert duplicate (should fail or be handled)
+        $violation = null;
+
         try {
             $db->find()->table('test_unique_constraint')->insert([
                 'email' => 'test@example.com',
                 'username' => 'testuser2',
             ]);
-            $this->fail('Expected unique constraint violation');
-        } catch (\Throwable $e) {
-            // Expected - unique constraint should prevent duplicate
-            $this->assertTrue(true);
+        } catch (ConstraintViolationException $e) {
+            $violation = $e;
         }
+
+        $this->assertNotNull($violation, 'the unique constraint must reject the duplicate email');
 
         // Cleanup
         $schema->dropIndex('idx_username_unique', 'test_unique_constraint');

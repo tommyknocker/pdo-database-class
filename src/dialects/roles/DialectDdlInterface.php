@@ -88,6 +88,12 @@ interface DialectDdlInterface
     ): string;
 
     /**
+     * Whether ADD COLUMN can carry a UNIQUE constraint. When it cannot (SQLite), the unique index is created in a
+     * separate statement after the column.
+     */
+    public function addsUniqueColumnInline(): bool;
+
+    /**
      * Build ALTER TABLE DROP COLUMN SQL statement.
      *
      * @param string $table Table name

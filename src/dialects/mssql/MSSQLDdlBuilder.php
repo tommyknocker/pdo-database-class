@@ -643,6 +643,10 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
             }
         }
 
+        if ($schema->isUnique()) {
+            $sql .= ' UNIQUE';
+        }
+
         return $sql;
     }
 

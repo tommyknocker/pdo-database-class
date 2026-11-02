@@ -508,7 +508,9 @@ class PostgreSQLDdlBuilder implements DdlBuilderInterface
             }
         }
 
-        // UNIQUE is handled separately (not in column definition)
+        if ($schema->isUnique()) {
+            $parts[] = 'UNIQUE';
+        }
         // It's created via CREATE INDEX or table constraint
 
         return implode(' ', $parts);

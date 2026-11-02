@@ -181,6 +181,10 @@ trait DdlBuilderTrait
         // Dispatch DDL operation event
         $this->dispatchDdlEvent('ADD_COLUMN', $tableName, $sql);
 
+        if ($schema->isUnique() && !$this->dialect->addsUniqueColumnInline()) {
+            $this->createIndex('uniq_' . $table . '_' . $column, $table, $column, true);
+        }
+
         return $this;
     }
 
