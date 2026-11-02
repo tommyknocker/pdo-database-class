@@ -1371,20 +1371,45 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     public function buildShowForeignKeysSql(string $table): string
     {
         // Oracle stores table names case-sensitively if created with quoted identifiers
-        // Use UPPER() for both sides to handle case-insensitive comparison
-        // This works for both quoted (case-sensitive) and unquoted (uppercase) table names
+        // The name is compared as given and in upper case: that covers quoted and unquoted tables, and, unlike
+        // UPPER(column) = UPPER(...), lets Oracle use the dictionary's index on the table name.
         $tableEscaped = str_replace("'", "''", $table);
         return "SELECT
             ucc.CONSTRAINT_NAME,
             ucc.COLUMN_NAME,
             uc.R_OWNER as REFERENCED_TABLE_SCHEMA,
-            (SELECT TABLE_NAME FROM USER_CONSTRAINTS WHERE CONSTRAINT_NAME = uc.R_CONSTRAINT_NAME AND ROWNUM = 1) as REFERENCED_TABLE_NAME,
-            (SELECT COLUMN_NAME FROM USER_CONS_COLUMNS WHERE CONSTRAINT_NAME = uc.R_CONSTRAINT_NAME AND POSITION = ucc.POSITION AND ROWNUM = 1) as REFERENCED_COLUMN_NAME
-            FROM USER_CONS_COLUMNS ucc
-            JOIN USER_CONSTRAINTS uc ON ucc.CONSTRAINT_NAME = uc.CONSTRAINT_NAME
-            WHERE UPPER(uc.TABLE_NAME) = UPPER('{$tableEscaped}')
+            rc.TABLE_NAME as REFERENCED_TABLE_NAME,
+            rcc.COLUMN_NAME as REFERENCED_COLUMN_NAME
+            FROM USER_CONSTRAINTS uc
+            JOIN USER_CONS_COLUMNS ucc ON ucc.CONSTRAINT_NAME = uc.CONSTRAINT_NAME AND ucc.TABLE_NAME = uc.TABLE_NAME
+            LEFT JOIN USER_CONSTRAINTS rc ON rc.CONSTRAINT_NAME = uc.R_CONSTRAINT_NAME
+            LEFT JOIN USER_CONS_COLUMNS rcc ON rcc.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND rcc.POSITION = ucc.POSITION
+            WHERE uc.TABLE_NAME IN ('{$tableEscaped}', UPPER('{$tableEscaped}'))
             AND uc.CONSTRAINT_TYPE = 'R'
             ORDER BY ucc.CONSTRAINT_NAME, ucc.POSITION";
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * Every query on USER_CONSTRAINTS costs Oracle about the same whatever its filter (a full pass over the data
+     * dictionary), so a schema of a hundred tables takes minutes when asked table by table.
+     */
+    public function buildShowAllForeignKeysSql(): ?string
+    {
+        return "SELECT
+            uc.TABLE_NAME,
+            ucc.CONSTRAINT_NAME,
+            ucc.COLUMN_NAME,
+            uc.R_OWNER as REFERENCED_TABLE_SCHEMA,
+            rc.TABLE_NAME as REFERENCED_TABLE_NAME,
+            rcc.COLUMN_NAME as REFERENCED_COLUMN_NAME
+            FROM USER_CONSTRAINTS uc
+            JOIN USER_CONS_COLUMNS ucc ON ucc.CONSTRAINT_NAME = uc.CONSTRAINT_NAME AND ucc.TABLE_NAME = uc.TABLE_NAME
+            LEFT JOIN USER_CONSTRAINTS rc ON rc.CONSTRAINT_NAME = uc.R_CONSTRAINT_NAME
+            LEFT JOIN USER_CONS_COLUMNS rcc ON rcc.CONSTRAINT_NAME = rc.CONSTRAINT_NAME AND rcc.POSITION = ucc.POSITION
+            WHERE uc.CONSTRAINT_TYPE = 'R'
+            ORDER BY uc.TABLE_NAME, ucc.CONSTRAINT_NAME, ucc.POSITION";
     }
 
     /**

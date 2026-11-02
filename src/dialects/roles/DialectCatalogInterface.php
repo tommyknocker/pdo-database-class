@@ -58,6 +58,13 @@ interface DialectCatalogInterface
     public function buildShowForeignKeysSql(string $table): string;
 
     /**
+     * One statement that returns the foreign keys of every table, for a database where asking per table is slow (the
+     * Oracle data dictionary costs about a second per query). Rows have the columns of
+     * {@see buildShowForeignKeysSql()} plus `TABLE_NAME`. Null when per-table queries are fine.
+     */
+    public function buildShowAllForeignKeysSql(): ?string;
+
+    /**
      * Get constraints for a table.
      *
      * @param string $table

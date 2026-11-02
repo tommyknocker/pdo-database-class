@@ -44,7 +44,7 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
 
 ## If you implement `DialectInterface` or extend the dashboard
 
-- [ ] New required methods (including `configOptimizerStrategy()`, `supportsUpsertClause()`, `buildUpsertClauseForValues()` and `applyConfig()`), no MySQL-style default for `TRUNCATE` and `REGEXP`,
+- [ ] New required methods (including `configOptimizerStrategy()`, `supportsUpsertClause()`, `buildUpsertClauseForValues()`, `applyConfig()`, `outboxMissingIndexSql()` and `buildShowAllForeignKeysSql()`), no MySQL-style default for `TRUNCATE` and `REGEXP`,
       removed outbox claim methods, and `OnConflictUpsertTrait` for `ON CONFLICT` upserts: see
       [Custom dialects](documentation/10-cookbook/05-upgrading.md#custom-dialects).
 - [ ] Subclasses of the TUI `Dashboard` target `SqlScratchpad` and `DashboardViews`.

@@ -184,6 +184,9 @@ override its methods, check:
 - `DialectAbstract::formatGroupConcat()` throws unless overridden instead of emitting MySQL's `SEPARATOR` syntax.
 - Values written into SQL text use `quoteStringLiteral()` instead of `addslashes()` or raw interpolation, so a value with a
   quote can no longer break out of its literal on PostgreSQL, SQLite, SQL Server and Oracle.
+- New required methods `outboxMissingIndexSql()` (statements that create outbox indexes an older table lacks; return `[]`
+  when `buildOutboxSchemaSql()` creates every index with an idempotent statement) and `buildShowAllForeignKeysSql()` (one
+  statement for the foreign keys of all tables, or `null` to be asked table by table). `DialectAbstract` supplies both.
 - New required method `applyConfig()` (receives the connection's configuration array; most dialects ignore it).
 - New required method `buildUpsertClauseForValues()` (the upsert clause of `INSERT ... VALUES`, which also gets the inserted
   columns; return what `buildUpsertClause()` returns unless the syntax differs, as MySQL's row alias does).

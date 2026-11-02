@@ -865,4 +865,40 @@ SELECT * FROM users WHERE id = 1;
         $this->assertNotEmpty($result['recommendations'], 'Should have recommendations');
         $this->assertArrayHasKey('sga_target', $result['recommendations']);
     }
+
+    public function testWholeSchemaAnalysisFindsForeignKeysFromOneQuery(): void
+    {
+        $db = self::$db;
+        foreach (['test_child_all', 'test_parent_all'] as $table) {
+            try {
+                $db->rawQuery('DROP TABLE "' . $table . '" CASCADE CONSTRAINTS');
+            } catch (\Throwable) {
+            }
+        }
+        $db->rawQuery('CREATE TABLE "test_parent_all" ("ID" NUMBER PRIMARY KEY, "NAME" VARCHAR2(100))');
+        $db->rawQuery('CREATE TABLE "test_child_all" (
+            "ID" NUMBER PRIMARY KEY,
+            "PARENT_ID" NUMBER,
+            CONSTRAINT fk_test_child_all FOREIGN KEY ("PARENT_ID") REFERENCES "test_parent_all"("ID")
+        )');
+
+        try {
+            $analyzer = new SchemaAnalyzer($db);
+            $perTable = $analyzer->analyzeTable('test_child_all');
+            $messages = array_column((new SchemaAnalyzer($db))->analyze()['warnings'], 'message');
+
+            $this->assertNotEmpty($perTable['foreign_keys'], 'the per-table path sees the foreign key');
+            $this->assertNotEmpty(
+                array_filter($messages, static fn (string $m): bool => str_contains($m, "'test_child_all'") && str_contains($m, 'foreign key')),
+                'the whole-schema path, which asks for all foreign keys at once, reports the same missing index'
+            );
+        } finally {
+            foreach (['test_child_all', 'test_parent_all'] as $table) {
+                try {
+                    $db->rawQuery('DROP TABLE "' . $table . '" CASCADE CONSTRAINTS');
+                } catch (\Throwable) {
+                }
+            }
+        }
+    }
 }

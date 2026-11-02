@@ -49,8 +49,10 @@ class SchemaAnalyzer
             'timestamp_indexes_needed' => 0,
         ];
 
+        $foreignKeysByTable = $this->foreignKeysOfAllTables();
+
         foreach ($tables as $table) {
-            $tableResult = $this->analyzeTable($table);
+            $tableResult = $this->analyzeTable($table, $foreignKeysByTable === null ? null : ($foreignKeysByTable[strtolower($table)] ?? []));
             $hasIssues = false;
 
             // Check for critical issues (missing PK)
@@ -156,10 +158,11 @@ class SchemaAnalyzer
      * Analyze single table structure.
      *
      * @param string $table Table name
+     * @param array<int, array<string, mixed>>|null $foreignKeys Foreign keys already fetched for the table; fetched here when null
      *
      * @return array<string, mixed> Analysis result
      */
-    public function analyzeTable(string $table): array
+    public function analyzeTable(string $table, ?array $foreignKeys = null): array
     {
         // Skip tableExists check - if table doesn't exist, info() will fail and we'll handle it
         // This saves one query per table
@@ -173,7 +176,7 @@ class SchemaAnalyzer
         }
         $indexes = $this->extractIndexes($info['indexes'] ?? []);
         $primaryKey = $this->extractPrimaryKey($table, $info['indexes'] ?? []);
-        $foreignKeys = $this->getForeignKeys($table);
+        $foreignKeys ??= $this->getForeignKeys($table);
         $redundant = $this->redundantIndexDetector->detect($table, $indexes);
         $missingFkIndexes = $this->findMissingFkIndexes($table, $foreignKeys, $indexes);
 
@@ -236,6 +239,34 @@ class SchemaAnalyzer
         // Use dialect-specific method to get primary key columns
         $dialect = $this->db->schema()->getDialect();
         return $dialect->getPrimaryKeyColumns($this->db, $table);
+    }
+
+    /**
+     * The foreign keys of every table from one statement, keyed by lower-cased table name, or null when the database is
+     * asked table by table.
+     *
+     * @return array<string, array<int, array<string, mixed>>>|null
+     */
+    protected function foreignKeysOfAllTables(): ?array
+    {
+        $sql = $this->db->schema()->getDialect()->buildShowAllForeignKeysSql();
+        if ($sql === null) {
+            return null;
+        }
+
+        try {
+            $rows = $this->db->rawQuery($sql);
+        } catch (\Exception) {
+            return null;
+        }
+
+        $byTable = [];
+        foreach ($rows as $row) {
+            $row = array_change_key_case($row, CASE_UPPER);
+            $byTable[strtolower((string)($row['TABLE_NAME'] ?? ''))][] = $row;
+        }
+
+        return $byTable;
     }
 
     /**

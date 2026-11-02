@@ -23,6 +23,14 @@ trait CatalogDefaults
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function buildShowAllForeignKeysSql(): ?string
+    {
+        return null;
+    }
+
+    /**
      * Check if column is array type (PostgreSQL arrays).
      *
      * @param array<string, mixed> $columnMetadata Column metadata from describe
