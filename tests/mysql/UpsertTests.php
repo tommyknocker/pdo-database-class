@@ -25,10 +25,10 @@ final class UpsertTests extends BaseMySQLTestCase
         ->insert(['name' => 'Eve', 'age' => 21]);
 
         $lastQuery = $db->lastQuery ?? '';
-        $this->assertStringContainsString(
-            'ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)',
-            $lastQuery
-        );
+        $expected = $db->schema()->getDialect()->supportsRowAlias()
+            ? 'AS pdodb_new (pdodb_c0, pdodb_c1) ON DUPLICATE KEY UPDATE `age` = pdodb_new.pdodb_c1'
+            : 'ON DUPLICATE KEY UPDATE `age` = VALUES(`age`)';
+        $this->assertStringContainsString($expected, $lastQuery);
 
         $row = $db->find()
         ->from('users')

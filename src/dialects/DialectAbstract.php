@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
+use tommyknocker\pdodb\dialects\mysqlfamily\MySQLRowAlias;
 use tommyknocker\pdodb\dialects\traits\AdminDefaults;
 use tommyknocker\pdodb\dialects\traits\CatalogDefaults;
 use tommyknocker\pdodb\dialects\traits\ConnectionDefaults;
@@ -323,6 +324,16 @@ abstract class DialectAbstract implements DialectInterface
     }
 
     /**
+     * Alias for the inserted row in `ON DUPLICATE KEY UPDATE`, or null to write `VALUES(column)`.
+     *
+     * @param list<string> $quotedColumns The inserted columns, quoted, in insert order
+     */
+    protected function duplicateKeyRowAlias(array $quotedColumns): ?MySQLRowAlias
+    {
+        return null;
+    }
+
+    /**
      * MySQL and MariaDB insert-or-ignore / insert-or-assign statement.
      *
      * @param array<string, string|int|float|RawValue|null> $row
@@ -342,12 +353,14 @@ abstract class DialectAbstract implements DialectInterface
         $placeholders = array_map(fn (string $column): string => $this->upsertValueSql($column, $row), $columns);
         $assignments = [];
         $assigned = $updateColumns === [] ? [$conflictColumns[0]] : $updateColumns;
+        $alias = $this->duplicateKeyRowAlias($quotedColumns);
         foreach ($assigned as $column) {
             $quoted = $this->quoteIdentifier($column);
-            $assignments[] = $quoted . ' = VALUES(' . $quoted . ')';
+            $assignments[] = $quoted . ' = ' . ($alias !== null ? $alias->value($quoted) : 'VALUES(' . $quoted . ')');
         }
         $sql = 'INSERT INTO ' . $this->quoteTable($table)
             . ' (' . implode(', ', $quotedColumns) . ') VALUES (' . implode(', ', $placeholders) . ') '
+            . ($alias !== null ? $alias->declaration() . ' ' : '')
             . 'ON DUPLICATE KEY UPDATE ' . implode(', ', $assignments);
 
         return [$sql, $params];

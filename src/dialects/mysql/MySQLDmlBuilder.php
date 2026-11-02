@@ -15,4 +15,9 @@ class MySQLDmlBuilder extends MySQLFamilyDmlBuilder
     {
         return 'MySQL';
     }
+
+    protected function usesRowAlias(): bool
+    {
+        return $this->dialect instanceof MySQLDialect && $this->dialect->supportsRowAlias();
+    }
 }

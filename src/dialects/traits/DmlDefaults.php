@@ -180,4 +180,12 @@ trait DmlDefaults
     {
         return true;
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function buildUpsertClauseForValues(array $updateColumns, array $insertColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
+    {
+        return $this->buildUpsertClause($updateColumns, $defaultConflictTarget, $tableName);
+    }
 }

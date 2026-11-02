@@ -196,6 +196,14 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
         return $this->dmlBuilder->buildUpsertClause($updateColumns, $defaultConflictTarget, $tableName);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public function buildUpsertClauseForValues(array $updateColumns, array $insertColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
+    {
+        return $this->dmlBuilder->buildUpsertClauseForValues($updateColumns, $insertColumns, $defaultConflictTarget, $tableName);
+    }
+
     public function buildIdempotentUpsertSql(
         string $table,
         array $row,

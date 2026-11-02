@@ -547,7 +547,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
             // if no id column in columns, use first column for $defaultConflictTarget
             $defaultConflictTarget = $this->conflictTarget ?? (in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id'));
             $tableName = $this->table ?? '';
-            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
+            $sql .= ' ' . $this->dialect->buildUpsertClauseForValues($this->onDuplicate, $columns, $defaultConflictTarget, $tableName);
         }
 
         return [$sql, $this->parameterManager->getParamsFor($sql)];
@@ -712,7 +712,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
             // if no id column in columns, use first column for $defaultConflictTarget
             $defaultConflictTarget = $this->conflictTarget ?? (in_array('id', $columns, true) ? 'id' : (string)($columns[0] ?? 'id'));
             $tableName = $this->table ?? '';
-            $sql .= ' ' . $this->dialect->buildUpsertClause($this->onDuplicate, $defaultConflictTarget, $tableName);
+            $sql .= ' ' . $this->dialect->buildUpsertClauseForValues($this->onDuplicate, $columns, $defaultConflictTarget, $tableName);
         }
 
         return [$sql, $this->parameterManager->getParamsFor($sql)];

@@ -156,6 +156,16 @@ interface DialectDmlInterface
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string;
 
     /**
+     * The upsert clause for `INSERT ... VALUES`, which also knows the inserted columns. Same as
+     * {@see buildUpsertClause()} except on MySQL 8.0.19+, where the clause refers to the new row by an alias instead of
+     * the deprecated `VALUES(column)` (the alias exists only for `VALUES`, not for `INSERT ... SELECT`).
+     *
+     * @param array<int|string, mixed> $updateColumns
+     * @param list<string> $insertColumns
+     */
+    public function buildUpsertClauseForValues(array $updateColumns, array $insertColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string;
+
+    /**
      * Insert a row or leave the existing row unchanged when the conflict columns match.
      *
      * Update columns are assigned from the inserted row. An empty update list keeps

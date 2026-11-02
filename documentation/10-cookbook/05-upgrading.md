@@ -184,6 +184,8 @@ override its methods, check:
 - `DialectAbstract::formatGroupConcat()` throws unless overridden instead of emitting MySQL's `SEPARATOR` syntax.
 - Values written into SQL text use `quoteStringLiteral()` instead of `addslashes()` or raw interpolation, so a value with a
   quote can no longer break out of its literal on PostgreSQL, SQLite, SQL Server and Oracle.
+- New required method `buildUpsertClauseForValues()` (the upsert clause of `INSERT ... VALUES`, which also gets the inserted
+  columns; return what `buildUpsertClause()` returns unless the syntax differs, as MySQL's row alias does).
 - New required method `supportsUpsertClause()` (false when the database has no `INSERT ... ON CONFLICT`/`ON DUPLICATE`
   clause and upserts with `MERGE`).
 - New required method `configOptimizerStrategy()` (recommendations for `pdodb optimize`; return null for none).

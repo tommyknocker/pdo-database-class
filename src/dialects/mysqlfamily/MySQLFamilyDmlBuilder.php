@@ -140,10 +140,67 @@ abstract class MySQLFamilyDmlBuilder implements DmlBuilderInterface
      */
     public function buildUpsertClause(array $updateColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
     {
+        return $this->upsertClause($updateColumns, $tableName, null);
+    }
+
+    /**
+     * The clause for `INSERT ... VALUES`: on a server with row aliases the new row is read through one, otherwise
+     * (and for `INSERT ... SELECT`, which has no alias) through `VALUES(column)`.
+     *
+     * @param array<int|string, mixed> $updateColumns
+     * @param list<string> $insertColumns
+     */
+    public function buildUpsertClauseForValues(array $updateColumns, array $insertColumns, string $defaultConflictTarget = 'id', string $tableName = ''): string
+    {
+        $alias = $this->usesRowAlias()
+            ? new MySQLRowAlias(array_map([$this, 'quoteIdentifier'], $insertColumns))
+            : null;
+
+        return $this->upsertClause($updateColumns, $tableName, $alias);
+    }
+
+    /**
+     * Whether the connected server takes the new row as an alias instead of the deprecated `VALUES(c)`: MySQL
+     * 8.0.19 added the alias, MariaDB has none.
+     */
+    protected function usesRowAlias(): bool
+    {
+        return false;
+    }
+
+    private ?MySQLRowAlias $rowAlias = null;
+
+    /**
+     * The new row's value of a column in an ON DUPLICATE KEY UPDATE expression.
+     */
+    protected function newRowValue(string $colSql): string
+    {
+        return $this->rowAlias !== null ? $this->rowAlias->value($colSql) : "VALUES({$colSql})";
+    }
+
+    /**
+     * @param array<int|string, mixed> $updateColumns
+     */
+    private function upsertClause(array $updateColumns, string $tableName, ?MySQLRowAlias $alias): string
+    {
         if (!$updateColumns) {
             return '';
         }
 
+        $this->rowAlias = $alias;
+
+        try {
+            return ($alias !== null ? $alias->declaration() . ' ' : '') . $this->onDuplicateKeyUpdate($updateColumns, $tableName);
+        } finally {
+            $this->rowAlias = null;
+        }
+    }
+
+    /**
+     * @param array<int|string, mixed> $updateColumns
+     */
+    private function onDuplicateKeyUpdate(array $updateColumns, string $tableName): string
+    {
         $isAssoc = $this->isAssociativeArray($updateColumns);
 
         if ($isAssoc) {
@@ -152,7 +209,7 @@ abstract class MySQLFamilyDmlBuilder implements DmlBuilderInterface
             $updates = [];
             foreach ($updateColumns as $col) {
                 $qid = $this->quoteIdentifier($col);
-                $updates[] = "{$qid} = VALUES({$qid})";
+                $updates[] = "{$qid} = " . $this->newRowValue($qid);
             }
         }
 
@@ -222,14 +279,14 @@ abstract class MySQLFamilyDmlBuilder implements DmlBuilderInterface
     protected function buildIncrementExpression(string $colSql, array $expr, string $tableName): string
     {
         if (!isset($expr['__op']) || !isset($expr['val'])) {
-            return "{$colSql} = VALUES({$colSql})";
+            return "{$colSql} = " . $this->newRowValue($colSql);
         }
 
         $op = $expr['__op'];
         return match ($op) {
             'inc' => "{$colSql} = {$colSql} + " . (int)$expr['val'],
             'dec' => "{$colSql} = {$colSql} - " . (int)$expr['val'],
-            default => "{$colSql} = VALUES({$colSql})",
+            default => "{$colSql} = " . $this->newRowValue($colSql),
         };
     }
 
@@ -247,12 +304,12 @@ abstract class MySQLFamilyDmlBuilder implements DmlBuilderInterface
     protected function buildDefaultExpression(string $colSql, mixed $expr, string $col): string
     {
         if ($expr === true) {
-            return "{$colSql} = VALUES({$colSql})";
+            return "{$colSql} = " . $this->newRowValue($colSql);
         }
         if (is_string($expr)) {
             return "{$colSql} = {$expr}";
         }
-        return "{$colSql} = VALUES({$colSql})";
+        return "{$colSql} = " . $this->newRowValue($colSql);
     }
 
     /**
