@@ -18,6 +18,7 @@ use tommyknocker\pdodb\dialects\config\OracleConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\dialects\loaders\OracleFileLoader;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
@@ -428,51 +429,138 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
 
     /**
      * {@inheritDoc}
+     *
+     * Oracle has no `lastInsertId()`. The key of a table made by the schema builder comes from a sequence named
+     * `<table>_<column>_seq` (a table made by hand may use `<table>_seq`), filled in by a trigger when the insert
+     * leaves the column out. The sequence is the one the table's own trigger calls, not one matched by name. The id is therefore:
+     *  - the value the insert supplied for that column, when it supplied one (the sequence was not used, so its
+     *    CURRVAL would be the id of an earlier insert);
+     *  - otherwise CURRVAL of the sequence, which is this session's value from the insert that just ran.
+     * Null when the table has no such sequence (a UUID or composite key): there is no generated id to report.
      */
     public function extractInsertId(PDOStatement $stmt, string $sql, array $params): ?int
     {
-        // For Oracle, get ID from sequence.currval after INSERT
-        // This works because triggers use sequences to generate IDs
         if ($this->pdo === null) {
             return null;
         }
 
-        // Try to determine sequence name from table name
-        // Convention: table_name_seq for table "table_name"
-        // Handle quoted identifiers: "table_name" or table_name
-        if (preg_match('/INSERT\s+INTO\s+(?:"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))/i', $sql, $matches)) {
-            // @phpstan-ignore-next-line
-            $tableName = ($matches[1] ?? '') !== '' ? $matches[1] : ($matches[2] ?? null);
-            if (is_string($tableName)) {
-                // Remove schema prefix if present (e.g., "schema"."table" -> table)
-                $tableNameReplaced = preg_replace('/^[^"]*"\."/', '', $tableName);
-                if (!is_string($tableNameReplaced)) {
-                    return null;
-                }
-                $tableNameStr = trim($tableNameReplaced, '"\'');
-                if ($tableNameStr === '') {
-                    return null;
-                }
-                $tableNameLower = strtolower($tableNameStr);
-                $sequenceName = $tableNameLower . '_seq';
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null) {
+            return null;
+        }
 
-                try {
-                    $quotedSequence = $this->quoteIdentifier($sequenceName);
-                    $stmt = $this->pdo->query("SELECT {$quotedSequence}.CURRVAL FROM DUAL");
-                    if ($stmt !== false) {
-                        $id = $stmt->fetchColumn();
-                        if ($id !== false && $id !== null) {
-                            return (int)$id;
-                        }
-                    }
-                } catch (PDOException) {
-                    // Sequence might not exist or CURRVAL not available
-                    // Fall through to return null
-                }
+        // The cache can be stale after DDL (a dropped and recreated table): on a failed CURRVAL look the table up again once
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $sequences = $this->keySequencesOf($insert->table);
+            if ($sequences === []) {
+                return null;
             }
+
+            $generated = null;
+            foreach ($sequences as $candidate) {
+                if ($candidate['column'] !== null && $insert->positionOf($candidate['column']) !== null) {
+                    // The caller chose the key: it is the id (the sequence was not used, so its CURRVAL is an older one)
+                    return $insert->suppliedInt($candidate['column'], $params);
+                }
+                $generated ??= $candidate['sequence'];
+            }
+            if ($generated === null) {
+                return null;
+            }
+
+            try {
+                $query = $this->pdo->query('SELECT ' . $this->quoteIdentifier($generated) . '.CURRVAL FROM DUAL');
+                $id = $query === false ? false : $query->fetchColumn();
+                if (is_numeric($id)) {
+                    return (int)$id;
+                }
+            } catch (PDOException) {
+                // sequence dropped, or not used in this session yet
+            }
+            unset($this->keySequences[strtoupper($insert->table)]);
         }
 
         return null;
+    }
+
+    /**
+     * @var array<string, array{objectId: string, sequences: list<array{sequence: string, column: ?string}>}> Key sequences by
+     *                                                                                                        upper-cased table name
+     */
+    private array $keySequences = [];
+
+    /**
+     * The sequences that fill a table's key columns, read from the table's own triggers and cached per table.
+     *
+     * A name convention is not enough: a sequence called `USERS_ID_SEQ` may be left over from a dropped table, and the
+     * insert never touched it. The trigger that does the work says which sequence it calls and which column it sets
+     * (`SELECT users_seq.NEXTVAL INTO :NEW."ID" FROM DUAL`).
+     *
+     * @return list<array{sequence: string, column: ?string}>
+     */
+    private function keySequencesOf(string $table): array
+    {
+        $key = strtoupper($table);
+        // A dropped and recreated table (also by raw DDL) is a new object with new sequences: the object id tells
+        if ($this->pdo === null) {
+            return [];
+        }
+        $lookup = $this->pdo->prepare("SELECT OBJECT_ID FROM USER_OBJECTS WHERE OBJECT_NAME = :t AND OBJECT_TYPE = 'TABLE'");
+        if ($lookup === false || !$lookup->execute(['t' => $key])) {
+            return [];
+        }
+        $objectId = (string)($lookup->fetchColumn() ?: '');
+        if ($objectId === '') {
+            return [];
+        }
+        if (($this->keySequences[$key]['objectId'] ?? null) === $objectId) {
+            return $this->keySequences[$key]['sequences'];
+        }
+
+        $found = [];
+        $stmt = $this->pdo->prepare(
+            'SELECT s.NAME AS trigger_name, s.TEXT AS line FROM USER_SOURCE s '
+            . "WHERE s.TYPE = 'TRIGGER' AND s.NAME IN (SELECT TRIGGER_NAME FROM USER_TRIGGERS WHERE TABLE_NAME = :t) "
+            . 'ORDER BY s.NAME, s.LINE'
+        );
+        $stmt->execute(['t' => $key]);
+        $bodies = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $row = array_change_key_case($row);
+            $bodies[(string)$row['trigger_name']] = ($bodies[(string)$row['trigger_name']] ?? '') . (string)$row['line'];
+        }
+        foreach ($bodies as $body) {
+            if (preg_match('/"?([A-Za-z][\w$#]*)"?\s*\.\s*NEXTVAL\b/i', $body, $sequence) !== 1) {
+                continue;
+            }
+            $column = preg_match('/INTO\s+:NEW\s*\.\s*"?([A-Za-z][\w$#]*)"?/i', $body, $target) === 1 ? strtoupper($target[1]) : null;
+            $found[] = ['sequence' => strtoupper($sequence[1]), 'column' => $column];
+        }
+
+        // 12c: GENERATED AS IDENTITY and DEFAULT seq.NEXTVAL have no trigger; the dictionary names the sequence
+        try {
+            $stmt = $this->pdo->prepare('SELECT COLUMN_NAME, SEQUENCE_NAME FROM USER_TAB_IDENTITY_COLS WHERE TABLE_NAME = :t');
+            $stmt->execute(['t' => $key]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $row = array_change_key_case($row);
+                $found[] = ['sequence' => (string)$row['sequence_name'], 'column' => strtoupper((string)$row['column_name'])];
+            }
+
+            $stmt = $this->pdo->prepare('SELECT COLUMN_NAME, DATA_DEFAULT FROM USER_TAB_COLUMNS WHERE TABLE_NAME = :t');
+            $stmt->execute(['t' => $key]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $row = array_change_key_case($row);
+                if (is_string($row['data_default'] ?? null) && preg_match('/"?([A-Za-z][\w$#]*)"?\s*\.\s*"?NEXTVAL"?/i', $row['data_default'], $sequence) === 1) {
+                    $found[] = ['sequence' => strtoupper($sequence[1]), 'column' => strtoupper((string)$row['column_name'])];
+                }
+            }
+        } catch (PDOException) {
+            // a server without identity columns: the triggers above are all there is
+        }
+
+        $this->keySequences[$key] = ['objectId' => $objectId, 'sequences' => $found];
+
+        return $found;
     }
 
     /**
@@ -503,6 +591,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         string $tableName,
         array $columns
     ): void {
+        $this->keySequences = [];
         // Oracle needs to drop existing sequences and triggers before creating table
         $this->dropSequencesAndTriggers($connection, $tableName, $columns);
     }
@@ -516,6 +605,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         array $columns,
         string $sql
     ): void {
+        $this->keySequences = [];
         // Oracle needs to create triggers for auto-increment columns
         // Check if SQL contains sequences (indicates auto-increment columns)
         if (str_contains($sql, 'CREATE SEQUENCE')) {

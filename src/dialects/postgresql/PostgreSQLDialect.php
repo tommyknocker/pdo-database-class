@@ -18,6 +18,7 @@ use tommyknocker\pdodb\dialects\config\PostgreSQLConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
 use tommyknocker\pdodb\dialects\traits\OnConflictUpsertTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -2401,6 +2402,12 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
 
     /**
      * {@inheritDoc}
+     *
+     * `lastval()` is the last sequence value of the whole session, whatever table it belonged to, so it is wrong for
+     * a key the insert supplied and for a table without a serial key (it returns the id some earlier insert into
+     * another table produced). The id is therefore read for this table only: the value the insert supplied for its
+     * serial or identity column, otherwise `currval()` of that column's sequence. A table without such a column has no
+     * generated id to report.
      */
     public function extractInsertId(PDOStatement $stmt, string $sql, array $params): ?int
     {
@@ -2408,28 +2415,82 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             return null;
         }
 
-        // lastval()/lastInsertId() errors abort the current PostgreSQL transaction.
-        // A savepoint keeps the successful INSERT when the table has no serial.
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null) {
+            return null;
+        }
+
+        // What insert() reports when the row has no generated key. Returned here, not left to the caller's fallback,
+        // because the fallback would ask lastval() and get another table's id.
+        $noId = 1;
+
+        $generated = null;
+        foreach ($this->keySequencesOf($insert->qualifiedTable) as $candidate) {
+            if ($insert->positionOf($candidate['column']) !== null) {
+                return $insert->suppliedInt($candidate['column'], $params) ?? $noId;
+            }
+            $generated ??= $candidate['sequence'];
+        }
+        if ($generated === null) {
+            return $noId;
+        }
+
+        // currval() fails when the sequence was not used in this session, and a failed statement aborts the transaction
         $inTransaction = $this->pdo->inTransaction();
         if ($inTransaction) {
-            $this->pdo->exec('SAVEPOINT pdodb_last_insert_id');
+            $this->pdo->exec('SAVEPOINT pdodb_insert_id');
         }
 
         try {
-            $id = (int) $this->pdo->lastInsertId();
+            $statement = $this->pdo->prepare('SELECT currval(?::regclass)');
+            $statement->execute([$generated]);
+            $id = $statement->fetchColumn();
             if ($inTransaction) {
-                $this->pdo->exec('RELEASE SAVEPOINT pdodb_last_insert_id');
+                $this->pdo->exec('RELEASE SAVEPOINT pdodb_insert_id');
             }
 
-            return $id > 0 ? $id : 1;
+            return is_numeric($id) ? (int)$id : $noId;
         } catch (PDOException) {
             if ($inTransaction) {
-                $this->pdo->exec('ROLLBACK TO SAVEPOINT pdodb_last_insert_id');
-                $this->pdo->exec('RELEASE SAVEPOINT pdodb_last_insert_id');
+                $this->pdo->exec('ROLLBACK TO SAVEPOINT pdodb_insert_id');
+                $this->pdo->exec('RELEASE SAVEPOINT pdodb_insert_id');
             }
 
-            return 1;
+            return $noId;
         }
+    }
+
+    /**
+     * @var array<string, list<array{column: string, sequence: string}>> Serial and identity columns by table
+     */
+    private array $keySequences = [];
+
+    /**
+     * The serial and identity columns of a table with their sequences, found once per table.
+     *
+     * @return list<array{column: string, sequence: string}>
+     */
+    private function keySequencesOf(string $qualifiedTable): array
+    {
+        if (isset($this->keySequences[$qualifiedTable])) {
+            return $this->keySequences[$qualifiedTable];
+        }
+
+        $found = [];
+        if ($this->pdo !== null) {
+            $statement = $this->pdo->prepare(
+                'SELECT a.attname, pg_get_serial_sequence(?, a.attname) AS sequence FROM pg_attribute a '
+                . 'WHERE a.attrelid = ?::regclass AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum'
+            );
+            $statement->execute([$qualifiedTable, $qualifiedTable]);
+            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                if (is_string($row['sequence'] ?? null) && $row['sequence'] !== '') {
+                    $found[] = ['column' => (string)$row['attname'], 'sequence' => $row['sequence']];
+                }
+            }
+        }
+
+        return $this->keySequences[$qualifiedTable] = $found;
     }
 
     /**
