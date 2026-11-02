@@ -2356,4 +2356,36 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
 
         return parent::dumpValue($value);
     }
+
+    private ?int $serverMajorVersion = null;
+
+    /**
+     * Whether the server has the regular-expression functions REGEXP_LIKE, REGEXP_REPLACE and REGEXP_SUBSTR,
+     * which SQL Server added in version 17 (SQL Server 2025). Older servers get the LIKE translation instead.
+     */
+    public function supportsNativeRegexp(): bool
+    {
+        return $this->serverMajorVersion() >= 17;
+    }
+
+    /**
+     * Major version of the connected server (16 = SQL Server 2022, 17 = 2025); 0 when unknown.
+     */
+    protected function serverMajorVersion(): int
+    {
+        if ($this->serverMajorVersion !== null) {
+            return $this->serverMajorVersion;
+        }
+        if ($this->pdo === null) {
+            return 0;
+        }
+
+        try {
+            $version = (string)$this->pdo->getAttribute(PDO::ATTR_SERVER_VERSION);
+        } catch (\Throwable) {
+            return 0;
+        }
+
+        return $this->serverMajorVersion = (int)$version;
+    }
 }

@@ -222,16 +222,17 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     {
         $colQuoted = $this->quoteIdentifier($col);
 
-        if ($path === null) {
-            // Count keys in root object or elements in root array
-            return "(SELECT COUNT(*) FROM OPENJSON({$colQuoted}))";
+        $jsonPath = '$';
+        if ($path !== null) {
+            $jsonPath = $this->buildJsonPathString($this->normalizeJsonPath($path));
         }
 
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
+        // JSON_QUERY returns objects and arrays only, JSON_VALUE scalars only. OPENJSON fails on a scalar, so it is
+        // only reached for a container: elements of an array, keys of an object, 1 for a scalar, 0 for nothing.
+        $container = "JSON_QUERY({$colQuoted}, '{$jsonPath}')";
 
-        // Get JSON at path and count elements
-        return "(SELECT COUNT(*) FROM OPENJSON(JSON_QUERY({$colQuoted}, '{$jsonPath}')))";
+        return "CASE WHEN {$container} IS NOT NULL THEN (SELECT COUNT(*) FROM OPENJSON({$container})) "
+            . "WHEN JSON_VALUE({$colQuoted}, '{$jsonPath}') IS NOT NULL THEN 1 ELSE 0 END";
     }
 
     public function formatJsonKeys(string $col, array|string|null $path = null): string
@@ -512,6 +513,9 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     public function formatRegexpMatch(string|RawValue $value, string $pattern): string
     {
         $val = $this->resolveValue($value);
+        if ($this->hasNativeRegexp()) {
+            return 'REGEXP_LIKE(' . $val . ', ' . $this->patternLiteral($pattern) . ')';
+        }
         $translated = MSSQLRegexTranslator::translate($pattern);
 
         return '(' . $val . ' LIKE ' . $this->patternLiteral($translated['like']) . ')';
@@ -528,6 +532,9 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     public function formatRegexpReplace(string|RawValue $value, string $pattern, string $replacement): string
     {
         $val = $this->resolveValue($value);
+        if ($this->hasNativeRegexp()) {
+            return 'REGEXP_REPLACE(' . $val . ', ' . $this->patternLiteral($pattern) . ', ' . $this->patternLiteral($replacement) . ')';
+        }
         $literal = $this->literalOnly($pattern, 'Db::regexpReplace()');
 
         return 'REPLACE(' . $val . ', ' . $this->patternLiteral($literal) . ', ' . $this->patternLiteral($replacement) . ')';
@@ -535,10 +542,15 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
 
     public function formatRegexpExtract(string|RawValue $value, string $pattern, ?int $groupIndex = null): string
     {
+        $val = $this->resolveValue($value);
+        if ($this->hasNativeRegexp()) {
+            $group = $groupIndex !== null && $groupIndex > 0 ? ", 1, 1, '', {$groupIndex}" : '';
+
+            return 'REGEXP_SUBSTR(' . $val . ', ' . $this->patternLiteral($pattern) . $group . ')';
+        }
         if ($groupIndex !== null && $groupIndex > 0) {
             throw new UnsupportedOperationException('Capture groups need regular expressions, which SQL Server before 2025 does not have.');
         }
-        $val = $this->resolveValue($value);
         $translated = MSSQLRegexTranslator::translate($pattern);
         $literal = $translated['literal'];
         if ($literal === null) {
@@ -549,6 +561,14 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
 
         return 'CASE WHEN ' . $val . ' LIKE ' . $this->patternLiteral($translated['like']) . ' THEN '
             . $this->patternLiteral($literal) . ' ELSE NULL END';
+    }
+
+    /**
+     * Whether the connected server understands regular expressions natively (SQL Server 2025 and later).
+     */
+    protected function hasNativeRegexp(): bool
+    {
+        return $this->dialect instanceof MSSQLDialect && $this->dialect->supportsNativeRegexp();
     }
 
     /**

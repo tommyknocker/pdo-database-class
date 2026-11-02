@@ -308,6 +308,9 @@ $users = $db->find()
 
 ### Regular Expressions on SQL Server
 
+SQL Server 2025 (server version 17) has native `REGEXP_LIKE`, `REGEXP_REPLACE` and `REGEXP_SUBSTR`; PDOdb reads the server version
+and uses them, so any regular expression works there (checked against SQL Server 2025, version 17.0).
+
 SQL Server before 2025 has no regular expressions, only `LIKE` patterns. PDOdb translates the part of the syntax that
 `LIKE` can express exactly and throws `UnsupportedOperationException` for everything else, so a pattern never matches
 differently than it does on the other databases:

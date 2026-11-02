@@ -73,6 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update default OpenAI, Anthropic, Google and DeepSeek models, and simplify the AI setup wizard to configure only the chosen provider.
 
 ### Fixed
+- SQL Server 2025 and later (server version 17) now run `Db::regexpMatch()`, `regexpReplace()` and `regexpExtract()` with the native `REGEXP_LIKE` / `REGEXP_REPLACE` / `REGEXP_SUBSTR`, chosen from the server version; older servers keep the `LIKE` translation. The native path is tested against SQL Server 2025 (17.0); the MSSQL suite runs against any server selected with `PDODB_MSSQL_TEST_HOST` / `PDODB_MSSQL_TEST_PORT`.
+- `Db::jsonLength()` on SQL Server failed with a JSON error for a scalar member and on SQLite for a string member; both now return 1, like MySQL.
 - `->unique()` on a column in `createTable()` / `addColumn()` was silently ignored on SQLite, MySQL, MariaDB, PostgreSQL and SQL Server (only Oracle wrote `UNIQUE`), so the column accepted duplicates. It now produces the constraint on every dialect; SQLite, which cannot add a `UNIQUE` column to an existing table, gets a unique index right after the column.
 - `loadCsv()`, `loadXml()` and `loadJson()` left the connection inside an open transaction when the file could not be read, and committed a transaction the caller had started. They now commit and roll back only a transaction they started themselves, and always roll back on failure.
 - A CLI command that failed with a library exception (for example `table columns alter` on SQLite) ended in a PHP fatal error with a stack trace. The CLI now prints `Error: <message>` and exits with 1; set `PDODB_DEBUG=1` to get the exception and its trace. Commands also no longer print the error prefix twice (`Error: Error: ...`).

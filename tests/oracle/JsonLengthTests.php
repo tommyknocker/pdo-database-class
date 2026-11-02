@@ -14,7 +14,7 @@ final class JsonLengthTests extends BaseOracleTestCase
 
         foreach (JsonLengthSupport::documents() as $name => $expected) {
             $this->assertSame(
-                ['whole' => $expected['whole'], 'items' => $expected['items'], 'meta' => $expected['meta']],
+                ['whole' => $expected['whole'], 'items' => $expected['items'], 'meta' => $expected['meta'], 'n' => $expected['n']],
                 $lengths[$name] ?? null,
                 $name
             );

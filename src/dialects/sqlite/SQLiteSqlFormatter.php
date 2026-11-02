@@ -189,17 +189,17 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     {
         $colQuoted = $this->quoteIdentifier($col);
 
-        $target = $colQuoted;
+        // The json_* functions take the path themselves: json_extract() would hand back a plain SQL value for a
+        // string or number, which they then reject as malformed JSON
+        $args = $colQuoted;
         if ($path !== null) {
-            $parts = $this->normalizeJsonPath($path);
-            $jsonPath = $this->buildJsonPathString($parts);
-            $target = "json_extract({$colQuoted}, '{$jsonPath}')";
+            $args .= ", '" . $this->buildJsonPathString($this->normalizeJsonPath($path)) . "'";
         }
 
         // Like MySQL: elements of an array, keys of an object, 1 for a scalar; 0 when there is nothing
-        return "CASE json_type({$target}) WHEN 'array' THEN json_array_length({$target}) "
-            . "WHEN 'object' THEN (SELECT COUNT(*) FROM json_each({$target})) "
-            . "WHEN NULL THEN 0 ELSE CASE WHEN {$target} IS NULL THEN 0 ELSE 1 END END";
+        return "CASE WHEN json_type({$args}) IS NULL THEN 0 "
+            . "WHEN json_type({$args}) = 'array' THEN json_array_length({$args}) "
+            . "WHEN json_type({$args}) = 'object' THEN (SELECT COUNT(*) FROM json_each({$args})) ELSE 1 END";
     }
 
     /**
