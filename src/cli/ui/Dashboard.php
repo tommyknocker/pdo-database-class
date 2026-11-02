@@ -744,20 +744,6 @@ class Dashboard
     }
 
     /**
-     * Render placeholder pane (temporary until real panes are implemented).
-     *
-     * @param int $paneIndex Pane index
-     * @param string $title Pane title
-     */
-    protected function renderPlaceholderPane(int $paneIndex, string $title): void
-    {
-        $this->layout->renderBorder($paneIndex, $title, $this->state->activePane === $paneIndex);
-        $content = $this->layout->getContentArea($paneIndex);
-        Terminal::moveTo($content['row'], $content['col']);
-        Stdout::write('Coming soon...');
-    }
-
-    /**
      * Refresh data (fetch from database).
      */
     protected function refresh(): void

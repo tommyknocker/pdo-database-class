@@ -492,7 +492,7 @@ class SqlScratchpad
         }
 
         if ($this->scratchpadMode === 'editor') {
-            $help = 'F5:Execute | ↑↓:History | Tab:Results | F2:TX | F3:Save | F4:Export | Esc:Exit';
+            $help = 'F5:Run | PgUp/Dn:History | Tab:Results | F2:TX | F3:Save | F4:Export | Esc:Exit';
         } else {
             $help = '↑↓:Scroll | PgUp/PgDn:Page | Tab:Editor | F4:Export | Esc:Exit';
         }
@@ -515,8 +515,12 @@ class SqlScratchpad
      */
     public function handleKey(string $key): bool
     {
-        // Handle ESC to exit fullscreen
+        // Handle ESC: close the autocomplete list first, then leave fullscreen
         if ($key === 'esc') {
+            if ($this->scratchpadMode === 'editor' && $this->scratchpadAutocompleteActive) {
+                $this->scratchpadAutocompleteActive = false;
+                return false;
+            }
             ($this->closeFullscreen)();
             return false;
         }
@@ -596,6 +600,13 @@ class SqlScratchpad
                 $this->scratchpadAutocompleteActive = false;
                 return false;
             }
+        }
+
+        // Walk through the queries run before
+        if ($key === 'pageup' || $key === 'pagedown') {
+            $this->navigateScratchpadHistory($key === 'pageup' ? -1 : 1);
+            $this->scratchpadAutocompleteActive = false;
+            return false;
         }
 
         // Execute query (F5 or Enter when query is not empty)
@@ -1135,9 +1146,6 @@ class SqlScratchpad
             return;
         }
 
-        // Debug: always log
-        file_put_contents('/tmp/pdodb_autocomplete.log', "triggerAutocomplete called with prefix: '$prefix'\n", FILE_APPEND);
-
         // Step 1: Get all SQL keywords and filter by prefix
         $allKeywords = [
             'SELECT', 'FROM', 'WHERE', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN',
@@ -1219,106 +1227,6 @@ class SqlScratchpad
         } else {
             $this->scratchpadAutocompleteActive = false;
         }
-    }
-
-    /**
-     * Get autocomplete context from SQL text (deprecated - not used in simplified autocomplete).
-     *
-     * @param string $before Text before cursor
-     * @param string $after Text after cursor
-     *
-     * @return string Context type: 'table', 'column', 'keyword', 'table_column', 'select_keyword'
-     *
-     * @deprecated Not used in simplified autocomplete
-     */
-    protected function getAutocompleteContext(string $before, string $after): string
-    {
-        // Don't trim - we need to check for spaces
-        $beforeLower = mb_strtolower($before, 'UTF-8');
-
-        // Check if we're after a dot (table.column)
-        if (preg_match('/([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*$/', $before, $matches)) {
-            $tableAlias = $matches[1];
-            // Find table name from FROM/JOIN clauses
-            $tableName = $this->findTableNameFromAlias($tableAlias);
-            if ($tableName !== null) {
-                return 'table_column:' . $tableName;
-            }
-            return 'column';
-        }
-
-        // Check if we're right after FROM or JOIN (expecting table name)
-        if (preg_match('/\b(?:FROM|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN)\s+$/i', $before)) {
-            return 'table';
-        }
-
-        // Check if we're after FROM/JOIN with space (expecting table name)
-        if (preg_match('/\b(?:FROM|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN)\s+\S+\s*$/i', $before)) {
-            // There's a table name, check what comes next
-            // If it's a JOIN, we need ON
-            if (preg_match('/\b(?:LEFT|RIGHT|INNER)?\s*JOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s*$/i', $before)) {
-                return 'on_keyword';
-            }
-            // Otherwise suggest AS, ON, WHERE, etc.
-            return 'keyword_after_table';
-        }
-
-        // Check if we're right after FROM/JOIN with just space (no table name yet)
-        if (preg_match('/\b(?:FROM|JOIN|INNER\s+JOIN|LEFT\s+JOIN|RIGHT\s+JOIN)\s+$/i', $before)) {
-            return 'table';
-        }
-
-        // Check if we're after LEFT JOIN / RIGHT JOIN / INNER JOIN with table name (expecting ON)
-        // Match: LEFT JOIN table or LEFT JOIN table alias
-        if (preg_match('/\b(?:LEFT|RIGHT|INNER)\s+JOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s+$/i', $before)) {
-            return 'on_keyword';
-        }
-
-        // Also check if we're after JOIN table (without LEFT/RIGHT/INNER)
-        if (preg_match('/\bJOIN\s+[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[a-zA-Z_][a-zA-Z0-9_]*)?\s+$/i', $before) &&
-            !preg_match('/\b(?:LEFT|RIGHT|INNER)\s+JOIN/i', $before)) {
-            return 'on_keyword';
-        }
-
-        // Check if we're after SELECT (expecting column or *)
-        if (preg_match('/\bSELECT\s+$/i', $before)) {
-            return 'select_column';
-        }
-
-        // Check if we're after SELECT with some columns already
-        if (preg_match('/\bSELECT\s+/i', $before) && !preg_match('/\bFROM\b/i', $before)) {
-            // Still in SELECT clause, suggest columns or FROM
-            return 'select_column';
-        }
-
-        // Check if we're after WHERE (expecting column name)
-        if (preg_match('/\bWHERE\s+$/i', $before)) {
-            return 'column';
-        }
-
-        // Check if we're after WHERE with some condition already
-        if (preg_match('/\bWHERE\s+/i', $before)) {
-            // Might need column or operator (AND, OR, etc.)
-            // Check if we're in the middle of a condition
-            if (preg_match('/\bWHERE\s+[^=<>!]+[=<>!]+\s*$/i', $before)) {
-                // After operator, suggest value or AND/OR
-                return 'keyword_after_where';
-            }
-            return 'column';
-        }
-
-        // Check if we're after ORDER BY, GROUP BY, HAVING
-        if (preg_match('/\b(?:ORDER\s+BY|GROUP\s+BY|HAVING)\s+$/i', $before)) {
-            return 'column';
-        }
-
-        // Check if we're at the start of query or after semicolon
-        if (trim($before) === '' || preg_match('/;\s*$/', $before)) {
-            return 'select_keyword';
-        }
-
-        // Default: suggest keywords (but filter out inappropriate ones)
-        return 'keyword';
     }
 
     /**
@@ -1419,14 +1327,6 @@ class SqlScratchpad
             return;
         }
 
-        // Debug: log what we're rendering
-        file_put_contents(
-            '/tmp/pdodb_autocomplete.log',
-            'renderAutocomplete: ' . count($this->scratchpadAutocompleteOptions) . ' options - ' .
-            implode(', ', array_slice($this->scratchpadAutocompleteOptions, 0, 10)) . "\n",
-            FILE_APPEND
-        );
-
         [$rows, $cols] = Terminal::getSize();
 
         // Calculate available space (leave at least 1 row for footer if needed)
@@ -1504,85 +1404,5 @@ class SqlScratchpad
         // For now, we'll use a different approach: detect special key combinations
         // This is a placeholder - actual implementation would need InputHandler support
         return false;
-    }
-
-    /**
-     * Find table name from alias in FROM/JOIN clauses.
-     *
-     * @param string $alias Table alias
-     *
-     * @return string|null Table name or null if not found
-     */
-    protected function findTableNameFromAlias(string $alias): ?string
-    {
-        $query = $this->scratchpadQuery;
-
-        // Look for: FROM table AS alias or FROM table alias or JOIN table AS alias
-        if (preg_match('/\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+(?:AS\s+)?' . preg_quote($alias, '/') . '\b/i', $query, $matches)) {
-            return $matches[1];
-        }
-
-        // If alias matches a table name, return it
-        $tables = $this->getTablesForAutocomplete();
-        if (in_array($alias, $tables, true)) {
-            return $alias;
-        }
-
-        return null;
-    }
-
-    /**
-     * Filter options by prefix (case-insensitive).
-     *
-     * @param array<int, string> $options Options to filter
-     * @param string $prefix Prefix to match
-     *
-     * @return array<int, string> Filtered options
-     */
-    protected function filterOptionsByPrefix(array $options, string $prefix): array
-    {
-        if ($prefix === '') {
-            return [];
-        }
-
-        $prefixLower = mb_strtolower($prefix, 'UTF-8');
-        $prefixLen = mb_strlen($prefixLower, 'UTF-8');
-        $filtered = [];
-
-        foreach ($options as $option) {
-            $optionLower = mb_strtolower($option, 'UTF-8');
-            $optionLen = mb_strlen($optionLower, 'UTF-8');
-
-            // Match if option starts with prefix (case-insensitive)
-            if ($optionLen >= $prefixLen) {
-                $optionPrefix = mb_substr($optionLower, 0, $prefixLen, 'UTF-8');
-                if ($optionPrefix === $prefixLower) {
-                    // Don't include if prefix is exactly the same as option
-                    if ($optionLower !== $prefixLower) {
-                        $filtered[] = $option;
-                    }
-                }
-            }
-        }
-
-        return $filtered;
-    }
-
-    /**
-     * Get SQL keywords for autocomplete.
-     *
-     * @return array<int, string>
-     */
-    protected function getSqlKeywords(): array
-    {
-        return [
-            'SELECT', 'FROM', 'WHERE', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN',
-            'ON', 'AS', 'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN', 'IS NULL', 'IS NOT NULL',
-            'ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT', 'OFFSET',
-            'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE',
-            'COUNT', 'SUM', 'AVG', 'MAX', 'MIN', 'DISTINCT',
-            'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
-            'UNION', 'ALL', 'EXISTS', 'EXCEPT', 'INTERSECT',
-        ];
     }
 }

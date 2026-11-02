@@ -407,6 +407,100 @@ final class DashboardBehaviorTests extends TestCase
         $this->assertSame(0, (int)$this->db->rawQueryValue('SELECT COUNT(*) FROM dash_users'));
     }
 
+    public function testTypingAKeywordPrefixOffersCompletionsAndTabAcceptsThem(): void
+    {
+        $dashboard = $this->scratchpad();
+        $dashboard->press(...str_split('SEL'));
+
+        $this->assertTrue($dashboard->prop('scratchpadAutocompleteActive'));
+        $this->assertSame(['SELECT'], $dashboard->prop('scratchpadAutocompleteOptions'));
+
+        $dashboard->press('tab');
+        $this->assertSame('SELECT', $dashboard->prop('scratchpadQuery'));
+        $this->assertFalse($dashboard->prop('scratchpadAutocompleteActive'));
+        $this->assertSame('editor', $dashboard->prop('scratchpadMode'), 'Tab accepts the completion instead of switching to results');
+    }
+
+    public function testCompletionsIncludeTablesAndColumnsOfTheDatabase(): void
+    {
+        $dashboard = $this->scratchpad();
+        $dashboard->press(...str_split('SELECT * FROM dash_u'));
+        $this->assertSame(['dash_users'], $dashboard->prop('scratchpadAutocompleteOptions'));
+
+        $dashboard->press('enter');
+        $this->assertSame('SELECT * FROM dash_users', $dashboard->prop('scratchpadQuery'));
+
+        $dashboard->press(' ', 'n', 'a');
+        $this->assertContains('name', $dashboard->prop('scratchpadAutocompleteOptions'));
+    }
+
+    public function testArrowKeysChooseACompletionAndWrapAround(): void
+    {
+        $dashboard = $this->scratchpad();
+        $dashboard->press(...str_split('IN'));
+        $options = $dashboard->prop('scratchpadAutocompleteOptions');
+        $this->assertGreaterThan(1, count($options));
+
+        $dashboard->press('down');
+        $this->assertSame(1, $dashboard->prop('scratchpadAutocompleteIndex'));
+        $dashboard->press('up', 'up');
+        $this->assertSame(count($options) - 1, $dashboard->prop('scratchpadAutocompleteIndex'));
+
+        $dashboard->press('enter');
+        $this->assertSame($options[count($options) - 1], $dashboard->prop('scratchpadQuery'));
+    }
+
+    public function testEscClosesTheCompletionListBeforeLeavingFullscreen(): void
+    {
+        $dashboard = $this->scratchpad();
+        $dashboard->press(...str_split('SEL'));
+
+        $dashboard->press('esc');
+        $this->assertFalse($dashboard->prop('scratchpadAutocompleteActive'));
+        $this->assertSame(Layout::PANE_SCRATCHPAD, $dashboard->prop('fullscreenPane'));
+
+        $dashboard->press('esc');
+        $this->assertSame(-1, $dashboard->prop('fullscreenPane'));
+    }
+
+    public function testPageKeysWalkThroughTheQueryHistory(): void
+    {
+        $dashboard = $this->scratchpad();
+        foreach (['SELECT 1', 'SELECT 2', 'SELECT 3'] as $query) {
+            $dashboard->set('scratchpadQuery', $query);
+            $dashboard->press('f5', 'tab');
+        }
+        $dashboard->set('scratchpadQuery', '');
+        $dashboard->set('scratchpadCursor', ['line' => 0, 'col' => 0]);
+
+        $seen = [];
+        foreach (['pageup', 'pageup', 'pagedown', 'pageup', 'pageup'] as $key) {
+            $dashboard->press($key);
+            $seen[] = $dashboard->prop('scratchpadQuery');
+        }
+
+        $this->assertSame(['SELECT 3', 'SELECT 2', 'SELECT 3', 'SELECT 2', 'SELECT 1'], $seen);
+        $this->assertSame(8, $dashboard->prop('scratchpadCursor')['col'], 'the cursor goes to the end of the loaded query');
+    }
+
+    public function testEditingKeysMoveTheCursorAndDeleteCharacters(): void
+    {
+        $dashboard = $this->scratchpad();
+        $dashboard->press(...str_split('12'));
+        $dashboard->press('left', '3');
+        $this->assertSame('132', $dashboard->prop('scratchpadQuery'));
+
+        $dashboard->press('backspace');
+        $this->assertSame('12', $dashboard->prop('scratchpadQuery'));
+
+        $dashboard->press('right', 'enter', '4');
+        $this->assertSame("12\n4", $dashboard->prop('scratchpadQuery'));
+        $this->assertSame(1, $dashboard->prop('scratchpadCursor')['line']);
+
+        $dashboard->press('up');
+        $this->assertSame(0, $dashboard->prop('scratchpadCursor')['line']);
+    }
+
     public function testEscInTheScratchpadLeavesFullscreen(): void
     {
         $dashboard = $this->scratchpad();
