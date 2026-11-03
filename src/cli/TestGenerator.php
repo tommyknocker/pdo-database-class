@@ -349,7 +349,7 @@ PHP;
         // \$this->db = new PdoDb([...]);
 
         // TODO: Set up test data if needed
-        // \$this->db->insert('{$tableName}', [...]);
+        // \$this->db->find()->table('{$tableName}')->insert([...]);
 
 PHP;
     }
@@ -371,7 +371,7 @@ PHP;
         // Clean up test data
         if (\$this->db !== null && '{$tableName}' !== null) {
             // TODO: Clean up test records
-            // \$this->db->delete()->from('{$tableName}')->where('test_marker', true)->execute();
+            // \$this->db->find()->table('{$tableName}')->where('test_marker', true)->delete();
         }
 
 PHP;
@@ -410,23 +410,24 @@ PHP;
         \$data = [
             // TODO: Add test data
         ];
-        \$id = \$this->db->insert('{$tableName}', \$data);
-        \$this->assertIsInt(\$id);
+        // insert() returns the new numeric id, or null for a UUID or composite key: then the key is in \$data
+        \$id = \$this->db->find()->table('{$tableName}')->insert(\$data) ?? \$data['{$primaryKey[0]}'] ?? null;
+        \$this->assertNotNull(\$id);
 
         // Test read
-        \$record = \$this->db->find()->from('{$tableName}')->where('{$primaryKey[0]}', \$id)->one();
-        \$this->assertNotNull(\$record);
+        \$record = \$this->db->find()->from('{$tableName}')->where('{$primaryKey[0]}', \$id)->getOne();
+        \$this->assertNotFalse(\$record);
 
         // Test update
         \$updateData = [
             // TODO: Add update data
         ];
-        \$this->db->update('{$tableName}')->set(\$updateData)->where('{$primaryKey[0]}', \$id)->execute();
+        \$this->db->find()->table('{$tableName}')->where('{$primaryKey[0]}', \$id)->update(\$updateData);
 
         // Test delete
-        \$this->db->delete()->from('{$tableName}')->where('{$primaryKey[0]}', \$id)->execute();
-        \$record = \$this->db->find()->from('{$tableName}')->where('{$primaryKey[0]}', \$id)->one();
-        \$this->assertNull(\$record);
+        \$this->db->find()->table('{$tableName}')->where('{$primaryKey[0]}', \$id)->delete();
+        \$record = \$this->db->find()->from('{$tableName}')->where('{$primaryKey[0]}', \$id)->getOne();
+        \$this->assertFalse(\$record);
     }
 
 PHP;

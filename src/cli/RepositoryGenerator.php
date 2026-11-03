@@ -191,7 +191,8 @@ class RepositoryGenerator extends BaseCliCommand
         string $modelNamespace
     ): string {
         $isSinglePrimaryKey = count($primaryKey) === 1 && $primaryKey[0] === 'id';
-        $primaryKeyParam = $isSinglePrimaryKey ? 'int $id' : 'array $ids';
+        // A key can be a string: a UUID, or a number beyond PHP_INT_MAX that insert() returns as a string
+        $primaryKeyParam = $isSinglePrimaryKey ? 'int|string $id' : 'array $ids';
         $primaryKeyVar = $isSinglePrimaryKey ? '$id' : '$ids';
 
         $primaryKeyWhere = $isSinglePrimaryKey
@@ -244,7 +245,9 @@ class {$repositoryName}
      */
     public function findById({$primaryKeyParam}): ?array
     {
-        return {$primaryKeyWhere}->getOne();
+        \$row = {$primaryKeyWhere}->getOne();
+
+        return \$row === false ? null : \$row;
     }
 
     /**
@@ -301,10 +304,12 @@ class {$repositoryName}
      */
     public function findOneBy(string \$column, mixed \$value): ?array
     {
-        return \$this->db->find()
+        \$row = \$this->db->find()
             ->from('{$tableName}')
             ->where(\$column, \$value)
             ->getOne();
+
+        return \$row === false ? null : \$row;
     }
 
     /**
@@ -382,7 +387,7 @@ class {$repositoryName}
             \$query->where(\$column, \$value);
         }
 
-        return (int)\$query->select('COUNT(*) as total')->getOne()['total'] ?? 0;
+        return (int)(\$query->select('COUNT(*) AS total')->getValue() ?? 0);
     }
 }
 

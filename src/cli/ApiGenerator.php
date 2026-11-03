@@ -240,11 +240,13 @@ class ApiGenerator extends BaseCliCommand
         string $format
     ): string {
         $isSinglePrimaryKey = count($primaryKey) === 1 && $primaryKey[0] === 'id';
-        $primaryKeyParam = $isSinglePrimaryKey ? 'int $id' : 'array $ids';
+        // A key can be a string: a UUID, or a number beyond PHP_INT_MAX that insert() returns as a string
+        $primaryKeyParam = $isSinglePrimaryKey ? 'int|string $id' : 'array $ids';
         $primaryKeyVar = $isSinglePrimaryKey ? '$id' : '$ids';
+        // insert() returns the new numeric id, or null for a UUID or composite key: then the key is in the data sent
         $storeReturn = $isSinglePrimaryKey
-            ? 'return $this->show($id);'
-            : '$ids = [\'' . $primaryKey[0] . '\' => $id];' . "\n        return \$this->show(\$ids);";
+            ? 'return $this->show($id ?? $data[\'id\'] ?? \'\') ?? $data;'
+            : '$ids = array_intersect_key($data, array_flip([\'' . implode("', '", array_map('strval', $primaryKey)) . '\']));' . "\n        return \$this->show(\$ids) ?? \$data;";
 
         $modelUse = '';
         $modelType = '';
@@ -293,8 +295,7 @@ class {$controllerName}
      */
     public function index(): array
     {
-        \$query = \$this->db->find()->from('{$tableName}');
-        return \$query->all();
+        return \$this->db->find()->from('{$tableName}')->get();
     }
 
     /**
@@ -316,7 +317,9 @@ class {$controllerName}
         } else {
             \$query->where('{$primaryKey[0]}', {$primaryKeyVar});
         }
-        return \$query->one();
+        \$row = \$query->getOne();
+
+        return \$row === false ? null : \$row;
     }
 
     /**
@@ -330,7 +333,7 @@ class {$controllerName}
      */
     public function store(array \$data): array
     {
-        \$id = \$this->db->insert('{$tableName}', \$data);
+        \$id = \$this->db->find()->table('{$tableName}')->insert(\$data);
         {$storeReturn}
     }
 
@@ -346,7 +349,7 @@ class {$controllerName}
      */
     public function update({$primaryKeyParam}, array \$data): ?array
     {
-        \$query = \$this->db->update('{$tableName}')->set(\$data);
+        \$query = \$this->db->find()->table('{$tableName}');
         if (is_array({$primaryKeyVar})) {
             foreach ({$primaryKeyVar} as \$key => \$value) {
                 \$query->where(\$key, \$value);
@@ -354,7 +357,7 @@ class {$controllerName}
         } else {
             \$query->where('{$primaryKey[0]}', {$primaryKeyVar});
         }
-        \$query->execute();
+        \$query->update(\$data);
         return \$this->show({$primaryKeyVar});
     }
 
@@ -369,7 +372,7 @@ class {$controllerName}
      */
     public function destroy({$primaryKeyParam}): bool
     {
-        \$query = \$this->db->delete()->from('{$tableName}');
+        \$query = \$this->db->find()->table('{$tableName}');
         if (is_array({$primaryKeyVar})) {
             foreach ({$primaryKeyVar} as \$key => \$value) {
                 \$query->where(\$key, \$value);
@@ -377,7 +380,7 @@ class {$controllerName}
         } else {
             \$query->where('{$primaryKey[0]}', {$primaryKeyVar});
         }
-        return \$query->execute();
+        return \$query->delete() > 0;
     }
 }
 
