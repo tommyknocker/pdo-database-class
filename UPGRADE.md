@@ -34,7 +34,8 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
 - [ ] `insert()` and `replace()` return `null` when the row has no numeric id (a string or UUID key, a table without a
       generated key, a skipped `INSERT IGNORE`). 2.10 to 3.0.0 returned `1` there, which looked like a real id; code
       that passes the result on (`$parent = insert(...)`) must take the key from its own data for such tables.
-      `insertFrom()` and `replaceMulti()` return the number of affected rows.
+      The type is `int|string|null`: a string only for an id beyond `PHP_INT_MAX`. `insertFrom()` and `replaceMulti()`
+      return the number of affected rows.
 - [ ] MySQL `LOCAL INFILE` is off unless you pass `PDO\Mysql::ATTR_LOCAL_INFILE`.
 - [ ] CLI: unknown options exit with 2, failures print `Error: ...` and exit with 1 (`PDODB_DEBUG=1` for traces).
 - [ ] AI settings: one selected provider (`PDODB_AI_API_KEY`, `PDODB_AI_MODEL`).

@@ -124,11 +124,12 @@ interface QueryBuilderInterface
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
      *
-     * @return int|null The id of the new row: the generated key, or the key the insert supplied when it was numeric.
-     *                  Null when the row has no numeric id to report (a string or UUID key, a composite key, a table
-     *                  without a generated key); the insert itself succeeded, as a failure throws.
+     * @return int|string|null The id of the new row: the generated key, or the key the insert supplied when it was numeric.
+     *                         An int, or a string when the id does not fit an int (BIGINT UNSIGNED above PHP_INT_MAX).
+     *                         Null when the row has no numeric id to report (a string or UUID key, a composite key, a table
+     *                         without a generated key); the insert itself succeeded, as a failure throws.
      */
-    public function insert(array $data, array $onDuplicate = []): ?int;
+    public function insert(array $data, array $onDuplicate = []): int|string|null;
 
     /**
      * @param array<int, array<string, string|int|float|bool|null|RawValue>> $rows
@@ -157,9 +158,9 @@ interface QueryBuilderInterface
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate
      *
-     * @return int|null The id of the row, or null when it has no numeric id to report (see insert()).
+     * @return int|string|null The id of the row, or null when it has no numeric id to report (see insert()).
      */
-    public function replace(array $data, array $onDuplicate = []): ?int;
+    public function replace(array $data, array $onDuplicate = []): int|string|null;
 
     /**
      * @param array<int, array<string, string|int|float|bool|null|RawValue>> $rows

@@ -79,9 +79,9 @@ abstract class Seed implements SeedInterface
      * @param string $table Table name
      * @param array<string, mixed> $columns Column data
      *
-     * @return int|null Inserted row ID, null when the row has no numeric ID (UUID or composite key)
+     * @return int|string|null Inserted row ID (a string when it does not fit an int), null when the row has no numeric ID
      */
-    protected function insert(string $table, array $columns): ?int
+    protected function insert(string $table, array $columns): int|string|null
     {
         return $this->db->find()->table($table)->insert($columns);
     }

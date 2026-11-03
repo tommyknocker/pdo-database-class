@@ -699,7 +699,7 @@ $id = $db->find()->table('users')->insert(['name' => 'Alice']);
 echo "Inserted ID: $id\n";
 ```
 
-`insert()` returns the generated numeric key, or the numeric key the insert supplied. It returns `null` when the row has no numeric id to report: a string or UUID key, a composite key, a table without a generated key, or an `INSERT IGNORE` that skipped the row. `null` does not mean the insert failed; a failure throws.
+`insert()` returns the generated numeric key, or the numeric key the insert supplied, as an `int`. An id that does not fit a PHP `int` (a `BIGINT UNSIGNED` above 9223372036854775807) comes back as a numeric `string` instead of being clamped. It returns `null` when the row has no numeric id to report: a string or UUID key, a composite key, a table without a generated key, or an `INSERT IGNORE` that skipped the row. `null` does not mean the insert failed; a failure throws.
 
 ```php
 $id = $db->find()->table('events')->insert(['id' => $uuid, 'type' => 'created']);   // null: the key is yours

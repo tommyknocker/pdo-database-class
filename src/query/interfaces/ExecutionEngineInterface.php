@@ -57,9 +57,9 @@ interface ExecutionEngineInterface
      * @param array<string, string|int|float|bool|null> $params
      * @param bool $isMulty
      *
-     * @return int
+     * @return int|string|null Row count for a multi-row insert; otherwise the new row's id, null when there is none
      */
-    public function executeInsert(string $sql, array $params, bool $isMulty = false): ?int;
+    public function executeInsert(string $sql, array $params, bool $isMulty = false): int|string|null;
 
     /**
      * Set fetch mode.

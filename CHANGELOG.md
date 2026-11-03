@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `insert()` and `replace()` return `null` when the row has no numeric id to report (a string or UUID key, a composite key, a table without a generated key, a skipped `INSERT IGNORE`). Since 2.10 they returned `1` there, which looked like a real id and let code attach child rows to the wrong parent; before 2.10 they returned `0`. A failed insert still throws. `ActiveRecord` no longer treats the id as the success flag, and `Seed::insert()`, `Migration::insert()` and the generated repository `create()` return `?int`.
+- `insert()` no longer casts an id to `int` blindly: PDO reports it as a string, and a `BIGINT UNSIGNED` id above `PHP_INT_MAX` was returned as `PHP_INT_MAX`. It is an `int` when it fits and the numeric string otherwise, so the return type is `int|string|null`.
 - `insertFrom()` and `replaceMulti()` return the number of affected rows (they returned the last insert id, which only matched the row count by coincidence).
 
 ### Fixed

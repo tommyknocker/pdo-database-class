@@ -227,10 +227,10 @@ class ExecutionEngine implements ExecutionEngineInterface
      * @param array<string, string|int|float|bool|null> $params
      * @param bool $isMulty
      *
-     * @return int
+     * @return int|string|null The row count for a multi-row insert; otherwise the new row's id (see normalizeInsertId())
      * @throws PDOException
      */
-    public function executeInsert(string $sql, array $params, bool $isMulty = false): ?int
+    public function executeInsert(string $sql, array $params, bool $isMulty = false): int|string|null
     {
         $stmt = $this->executeStatement($sql, $params);
 
@@ -247,9 +247,7 @@ class ExecutionEngine implements ExecutionEngineInterface
             }
 
             try {
-                $id = (int)$this->connection->getLastInsertId();
-
-                return $id > 0 ? $id : null;
+                return $this->normalizeInsertId($this->connection->getLastInsertId());
             } catch (PDOException) {
                 // PostgreSQL: lastval is not yet defined (no SERIAL column); Oracle: lastInsertId is not supported
                 return null;
@@ -257,6 +255,25 @@ class ExecutionEngine implements ExecutionEngineInterface
         } finally {
             $stmt->closeCursor();
         }
+    }
+
+    /**
+     * What PDO::lastInsertId() reports, as the caller should see it.
+     *
+     * PDO answers with a string because a driver cannot know whether the id is a number or fits an int. A number
+     * that fits becomes an int; one that does not (a BIGINT UNSIGNED above PHP_INT_MAX) stays a string, because
+     * casting it would silently return PHP_INT_MAX. '', '0' and false mean the statement produced no id.
+     */
+    protected function normalizeInsertId(string|false $raw): int|string|null
+    {
+        if ($raw === false || $raw === '' || $raw === '0') {
+            return null;
+        }
+        if (preg_match('/^[1-9][0-9]*$/', $raw) === 1 && (string)(int)$raw === $raw) {
+            return (int)$raw;
+        }
+
+        return $raw;
     }
 
     /**

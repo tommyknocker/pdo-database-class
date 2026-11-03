@@ -44,4 +44,18 @@ final class InsertIdTests extends BaseMySQLTestCase
 
         $this->assertNull(self::$db->find()->table('insert_id_auto')->option('IGNORE')->insert(['name' => 'a']));
     }
+
+    public function testAnUnsignedBigintBeyondPhpIntIsNotClamped(): void
+    {
+        self::$db->rawQuery('DROP TABLE IF EXISTS insert_id_big');
+        self::$db->rawQuery('CREATE TABLE insert_id_big (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, n INT) AUTO_INCREMENT=18446744073709551000');
+
+        try {
+            $id = self::$db->find()->table('insert_id_big')->insert(['n' => 1]);
+        } finally {
+            self::$db->rawQuery('DROP TABLE IF EXISTS insert_id_big');
+        }
+
+        $this->assertSame('18446744073709551000', $id, 'an int cast would have returned PHP_INT_MAX');
+    }
 }

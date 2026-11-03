@@ -312,9 +312,9 @@ class {$repositoryName}
      *
      * @param array<string, mixed> \$data Record data
      *
-     * @return int|null Inserted record ID, null when the row has no numeric ID (UUID or composite key)
+     * @return int|string|null Inserted record ID, null when the row has no numeric ID (UUID or composite key)
      */
-    public function create(array \$data): ?int
+    public function create(array \$data): int|string|null
     {
         return \$this->db->find()
             ->table('{$tableName}')
