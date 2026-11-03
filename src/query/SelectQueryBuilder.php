@@ -857,6 +857,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
      */
     public function limit(int $number): static
     {
+        if ($number < 0) {
+            throw new InvalidArgumentException("limit() expects a non-negative number, {$number} given.");
+        }
         $this->limit = $number;
         $this->conditionBuilder->setLimit($number);
         return $this;
@@ -871,6 +874,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
      */
     public function offset(int $number): static
     {
+        if ($number < 0) {
+            throw new InvalidArgumentException("offset() expects a non-negative number, {$number} given.");
+        }
         $this->offset = $number;
         return $this;
     }

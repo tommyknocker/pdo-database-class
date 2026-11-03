@@ -137,4 +137,21 @@ final class BuilderReuseTests extends BaseSharedTestCase
 
         $this->assertCount(3, $query->get(), 'LIMIT 3 must still apply after the failed build');
     }
+
+    public function testANegativeLimitOrOffsetIsRejectedBeforeAnyQueryRuns(): void
+    {
+        foreach ([
+            'limit' => static fn () => self::$db->find()->from('test_coverage')->limit(-1),
+            'offset' => static fn () => self::$db->find()->from('test_coverage')->offset(-5),
+        ] as $name => $build) {
+            try {
+                $build();
+                $this->fail("{$name}(-n) must throw.");
+            } catch (\InvalidArgumentException $e) {
+                $this->assertStringContainsString($name . '()', $e->getMessage());
+            }
+        }
+
+        $this->assertIsArray(self::$db->find()->from('test_coverage')->limit(0)->offset(0)->get(), 'zero stays valid');
+    }
 }

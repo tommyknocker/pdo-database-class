@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `paginate()` threw `Cannot use object of type stdClass as array` after `asObject()`.
 - `limit()` and `offset()` are restored when building a `UNION` query throws.
 - `insert()` returned a wrong id in two cases. On Oracle it always returned `1`, because the id was looked up in a sequence named `<table>_seq` while the schema builder creates `<table>_<column>_seq` (and the lookup quoted the name in the wrong case); it now returns the real id (from the table's trigger, identity column or sequence default), or the key the insert supplied. On PostgreSQL it used `lastval()`, the last sequence value of the whole session, so an insert that supplied its own key returned the sequence's last value and an insert into a table without a serial key returned the id of an earlier insert into another table; it now reads the sequence of the inserted table only, including a hand-made `DEFAULT nextval()`. A row without any generated key still reports `1`.
+- `limit()` and `offset()` throw `InvalidArgumentException` for a negative number. Before, the result depended on the database: MySQL, MariaDB, PostgreSQL and SQL Server failed with a syntax error, SQLite treated `limit(-1)` as no limit, and Oracle returned no rows for it and ignored a negative offset.
 - `insert()` documents what it returns: the generated or supplied numeric key, and `1` when the row has no numeric key to report.
 
 ## [3.0.0] - 2026-11-02
