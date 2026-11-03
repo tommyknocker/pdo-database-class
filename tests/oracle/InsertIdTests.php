@@ -101,7 +101,7 @@ final class InsertIdTests extends BaseOracleTestCase
 
     private function dropHandMade(): void
     {
-        foreach (['DROP TABLE "INSERT_ID_HAND" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_hand_seq', 'DROP SEQUENCE insert_id_hand_id_seq', 'DROP TABLE "INSERT_ID_IDENT" CASCADE CONSTRAINTS', 'DROP TABLE "INSERT_ID_DEFAULT" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_default_seq', 'DROP TABLE "INSERT_ID_ASSIGN" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_assign_seq'] as $sql) {
+        foreach (['DROP TABLE "INSERT_ID_HAND" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_hand_seq', 'DROP SEQUENCE insert_id_hand_id_seq', 'DROP TABLE "INSERT_ID_IDENT" CASCADE CONSTRAINTS', 'DROP TABLE "INSERT_ID_DEFAULT" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_default_seq', 'DROP TABLE "INSERT_ID_ASSIGN" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_assign_seq', 'DROP TABLE "INSERT_ID_BIG" CASCADE CONSTRAINTS', 'DROP SEQUENCE insert_id_big_seq', 'DROP TABLE "INSERT_ID_TEXTKEY" CASCADE CONSTRAINTS', 'DROP TABLE "INSERT_ID_COMPOSITE" CASCADE CONSTRAINTS'] as $sql) {
             try {
                 self::$db->rawQuery($sql);
             } catch (\Throwable) {
@@ -181,5 +181,35 @@ final class InsertIdTests extends BaseOracleTestCase
         ];
 
         $this->assertSame([1, 2, 70], $ids);
+    }
+
+    public function testAKeyBeyondPhpIntIsReturnedExactly(): void
+    {
+        $this->dropHandMade();
+        self::$db->rawQuery('CREATE SEQUENCE insert_id_big_seq START WITH 9223372036854775808 INCREMENT BY 1');
+        self::$db->rawQuery('CREATE TABLE "INSERT_ID_BIG" ("ID" NUMBER(28) DEFAULT insert_id_big_seq.NEXTVAL PRIMARY KEY, "AMOUNT" NUMBER)');
+
+        $generated = self::$db->find()->table('insert_id_big')->insert(['amount' => 1]);
+        $supplied = self::$db->find()->table('insert_id_big')->insert(['id' => '9223372036854775810', 'amount' => 2]);
+
+        $this->assertSame('9223372036854775808', $generated, 'an int cast would have returned PHP_INT_MAX');
+        $this->assertSame('9223372036854775810', $supplied);
+    }
+
+    public function testATextKeyYouSupplyIsReturnedAsTheKey(): void
+    {
+        $this->dropHandMade();
+        self::$db->rawQuery('CREATE TABLE "INSERT_ID_TEXTKEY" ("ID" VARCHAR2(36) PRIMARY KEY, "AMOUNT" NUMBER)');
+
+        $this->assertSame('a-1', self::$db->find()->table('insert_id_textkey')->insert(['id' => 'a-1', 'amount' => 1]));
+        $this->assertSame('b-2', self::$db->find()->table('insert_id_textkey')->insert(['id' => 'b-2', 'amount' => 2]));
+    }
+
+    public function testACompositeKeyHasNoSingleId(): void
+    {
+        $this->dropHandMade();
+        self::$db->rawQuery('CREATE TABLE "INSERT_ID_COMPOSITE" ("A" NUMBER, "B" NUMBER, PRIMARY KEY ("A", "B"))');
+
+        $this->assertNull(self::$db->find()->table('insert_id_composite')->insert(['a' => 1, 'b' => 2]));
     }
 }

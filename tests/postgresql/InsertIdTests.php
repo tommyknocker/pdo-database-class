@@ -12,7 +12,7 @@ final class InsertIdTests extends BasePostgreSQLTestCase
 {
     protected function tearDown(): void
     {
-        foreach (['insert_id_serial', 'insert_id_text', 'insert_id_identity', 'insert_id_default', 'insert_id_later'] as $table) {
+        foreach (['insert_id_serial', 'insert_id_text', 'insert_id_identity', 'insert_id_default', 'insert_id_later', 'insert_id_upsert', 'insert_id_secondary', 'insert_id_composite', 'insert_id_nopk'] as $table) {
             self::$db->schema()->dropTableIfExists($table);
         }
         self::$db->rawQuery('DROP SEQUENCE IF EXISTS insert_id_default_seq');
@@ -123,5 +123,96 @@ final class InsertIdTests extends BasePostgreSQLTestCase
         });
 
         $this->assertSame(2, (int)self::$db->rawQueryValue('SELECT COUNT(*) FROM insert_id_text'));
+    }
+
+    public function testAnUpsertReportsTheRowItWroteInBothBranches(): void
+    {
+        self::$db->schema()->dropTableIfExists('insert_id_upsert');
+        self::$db->rawQuery('CREATE TABLE insert_id_upsert (id BIGSERIAL PRIMARY KEY, email TEXT UNIQUE, note TEXT)');
+        $first = self::$db->find()->table('insert_id_upsert')->insert(['email' => 'a', 'note' => 'first']);
+
+        // The sequence advances for the conflicting attempt (to 2), but the conflict updates row 1
+        $updated = self::$db->find()->table('insert_id_upsert')->onDuplicate(['note'], 'email')->insert(['email' => 'a', 'note' => 'changed']);
+        $inserted = self::$db->find()->table('insert_id_upsert')->onDuplicate(['note'], 'email')->insert(['email' => 'b', 'note' => 'new']);
+
+        $this->assertSame([1, 1, 3], [$first, $updated, $inserted], 'the updated row, not the failed attempt (2); then the new row');
+        $this->assertSame(2, (int)self::$db->rawQueryValue('SELECT COUNT(*) FROM insert_id_upsert'));
+        $this->assertSame('changed', self::$db->rawQueryValue('SELECT note FROM insert_id_upsert WHERE id = 1'));
+    }
+
+    public function testADoNothingConflictReportsNoId(): void
+    {
+        self::$db->schema()->dropTableIfExists('insert_id_upsert');
+        self::$db->rawQuery('CREATE TABLE insert_id_upsert (id BIGSERIAL PRIMARY KEY, email TEXT UNIQUE)');
+        $first = self::$db->find()->table('insert_id_upsert')->insert(['email' => 'a']);
+
+        $skipped = self::$db->rawQuery('INSERT INTO insert_id_upsert (email) VALUES (:e) ON CONFLICT DO NOTHING', [':e' => 'a']);
+        $again = self::$db->find()->table('insert_id_upsert')->insert(['email' => 'b']);
+
+        $this->assertSame(1, $first);
+        $this->assertSame([], $skipped);
+        $this->assertSame(3, $again, 'the skipped attempt used sequence value 2');
+    }
+
+    public function testASecondarySequenceColumnIsNotTheId(): void
+    {
+        self::$db->schema()->dropTableIfExists('insert_id_secondary');
+        self::$db->rawQuery('CREATE TABLE insert_id_secondary (id TEXT PRIMARY KEY, serial_number BIGSERIAL)');
+
+        $this->assertSame('uuid-key', self::$db->find()->table('insert_id_secondary')->insert(['id' => 'uuid-key']), 'the key, not the counter (1)');
+    }
+
+    public function testAKeyTheDatabaseGeneratesIsReturned(): void
+    {
+        self::$db->schema()->dropTableIfExists('insert_id_secondary');
+        self::$db->rawQuery('CREATE TABLE insert_id_secondary (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, note TEXT)');
+
+        $id = self::$db->find()->table('insert_id_secondary')->insert(['note' => 'x']);
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', (string)$id);
+        $this->assertSame($id, self::$db->rawQueryValue('SELECT id::text FROM insert_id_secondary'));
+    }
+
+    public function testACompositeKeyHasNoSingleId(): void
+    {
+        self::$db->schema()->dropTableIfExists('insert_id_composite');
+        self::$db->rawQuery('CREATE TABLE insert_id_composite (a BIGSERIAL, b INT, PRIMARY KEY (a, b))');
+
+        $this->assertNull(self::$db->find()->table('insert_id_composite')->insert(['b' => 1]));
+    }
+
+    public function testATableWithoutAPrimaryKeyStillReportsItsSerial(): void
+    {
+        self::$db->schema()->dropTableIfExists('insert_id_nopk');
+        self::$db->rawQuery('CREATE TABLE insert_id_nopk (id SERIAL, note TEXT)');
+
+        $this->assertSame([1, 2], [
+            self::$db->find()->table('insert_id_nopk')->insert(['note' => 'a']),
+            self::$db->find()->table('insert_id_nopk')->insert(['note' => 'b']),
+        ]);
+    }
+
+    public function testTheSameTableNameInAnotherSchemaIsLookedUpAgain(): void
+    {
+        foreach (['insert_id_a', 'insert_id_b'] as $schema) {
+            self::$db->rawQuery("DROP SCHEMA IF EXISTS {$schema} CASCADE");
+            self::$db->rawQuery("CREATE SCHEMA {$schema}");
+            self::$db->rawQuery("CREATE TABLE {$schema}.t (id BIGSERIAL PRIMARY KEY, note TEXT)");
+        }
+        self::$db->rawQuery('ALTER SEQUENCE insert_id_b.t_id_seq RESTART WITH 101');
+        $previous = (string)self::$db->rawQueryValue('SHOW search_path');
+
+        try {
+            self::$db->rawQuery('SET search_path TO insert_id_a');
+            $inA = self::$db->find()->table('t')->insert(['note' => 'a']);
+            self::$db->rawQuery('SET search_path TO insert_id_b');
+            $inB = self::$db->find()->table('t')->insert(['note' => 'b']);
+        } finally {
+            self::$db->rawQuery('SET search_path TO ' . $previous);
+            self::$db->rawQuery('DROP SCHEMA IF EXISTS insert_id_a CASCADE');
+            self::$db->rawQuery('DROP SCHEMA IF EXISTS insert_id_b CASCADE');
+        }
+
+        $this->assertSame([1, 101], [$inA, $inB]);
     }
 }

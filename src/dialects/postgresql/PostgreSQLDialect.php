@@ -18,7 +18,9 @@ use tommyknocker\pdodb\dialects\config\PostgreSQLConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
+use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
 use tommyknocker\pdodb\dialects\traits\OnConflictUpsertTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -29,7 +31,7 @@ use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterface
+class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface
 {
     use OnConflictUpsertTrait;
 
@@ -2403,13 +2405,16 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     /**
      * {@inheritDoc}
      *
-     * `lastval()` is the last sequence value of the whole session, whatever table it belonged to, so it is wrong for
-     * a key the insert supplied and for a table without a serial key (it returns the id some earlier insert into
-     * another table produced). The id is therefore read for this table only: the value the insert supplied for its
-     * serial or identity column, otherwise `currval()` of that column's sequence. A table without such a column has no
-     * generated id to report.
+     * `lastval()` is the last sequence value of the whole session, whatever table it belonged to, and `currval()` is
+     * only meaningful for a row this statement inserted. The id is therefore read only when it can be trusted:
+     *  - the value the insert supplied for the table's key column, when it supplied one;
+     *  - otherwise `currval()` of the sequence behind the key column, when the table's primary key is that one column
+     *    (a table without a primary key uses its first serial or identity column).
+     * A key that is not a sequence (UUID, text, composite) and a secondary counter column are not ids. A skipped
+     * `ON CONFLICT DO NOTHING` has no id, and neither has a conflicting `DO UPDATE` unless the key was supplied: the
+     * sequence advanced for the attempt, so `currval()` would name a row that does not exist.
      */
-    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): ?int
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
     {
         if ($this->pdo === null) {
             return null;
@@ -2420,9 +2425,13 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             return null;
         }
 
-        // The row has no generated key to report. Answering 0 here, rather than null, keeps the caller from asking
-        // lastval(), which would return another table's id.
+        // The row has no id to report. Answering 0 here, rather than null, keeps the caller from asking lastval()
         $noId = 0;
+
+        if ($stmt->rowCount() === 0) {
+            return $noId; // nothing was inserted (ON CONFLICT DO NOTHING)
+        }
+        $upsert = preg_match('/\bON\s+CONFLICT\b/i', $insert->tail) === 1;
 
         // The cache can be stale after DDL (a column made serial or identity later): on a failed currval() look the table
         // up again once
@@ -2431,23 +2440,23 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             $sequences = $this->inSavepoint(fn (): array => $this->keySequencesOf($insert->qualifiedTable)) ?? [];
             foreach ($sequences as $candidate) {
                 if ($insert->positionOf($candidate['column']) !== null) {
-                    return $insert->suppliedInt($candidate['column'], $params) ?? $noId;
+                    return $insert->suppliedId($candidate['column'], $params) ?? $noId;
                 }
                 $generated ??= $candidate['sequence'];
             }
-            if ($generated === null) {
+            if ($generated === null || $upsert) {
                 return $noId;
             }
 
             $pdo = $this->pdo;
             $id = $this->inSavepoint(static function () use ($pdo, $generated): mixed {
-                $statement = $pdo->prepare('SELECT currval(?::regclass)');
+                $statement = $pdo->prepare('SELECT currval(?::oid::regclass)');
                 $statement->execute([$generated]);
 
                 return $statement->fetchColumn();
             });
-            if (is_numeric($id)) {
-                return (int)$id;
+            if (is_string($id) || is_int($id)) {
+                return InsertId::from($id) ?? $noId;
             }
             unset($this->keySequences[$insert->qualifiedTable]);
         }
@@ -2495,47 +2504,112 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     }
 
     /**
-     * @var array<string, list<array{column: string, sequence: string}>> Serial and identity columns by table
+     * @var array<string, array{oid: string, primaryKey: ?string, sequences: list<array{column: string, sequence: string}>}> What
+     *                                                                                                                       is known of a
+     *                                                                                                                       table, by the
+     *                                                                                                                       name as written
      */
     private array $keySequences = [];
 
     /**
-     * The columns that take their value from a sequence (serial, identity or DEFAULT nextval) with their sequences, found once per table.
+     * {@inheritDoc}
      *
+     * Appends `RETURNING <primary key>` when the table has a single-column primary key, so the key comes from the
+     * statement itself: the new row, the row an upsert updated, or no row for a skipped `ON CONFLICT DO NOTHING`.
+     */
+    public function insertIdReturningSql(string $sql): ?string
+    {
+        if ($this->pdo === null) {
+            return null;
+        }
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null || preg_match('/\bRETURNING\b/i', $insert->tail) === 1) {
+            return null;
+        }
+
+        $primaryKey = $this->inSavepoint(fn (): ?string => $this->tableKeyOf($insert->qualifiedTable)['primaryKey']);
+        if ($primaryKey === null) {
+            return null;
+        }
+
+        return rtrim($sql, " \t\n\r;") . ' RETURNING ' . $this->quoteIdentifier($primaryKey);
+    }
+
+    /**
      * @return list<array{column: string, sequence: string}>
      */
     private function keySequencesOf(string $qualifiedTable): array
     {
-        if (isset($this->keySequences[$qualifiedTable])) {
-            return $this->keySequences[$qualifiedTable];
+        return $this->tableKeyOf($qualifiedTable)['sequences'];
+    }
+
+    /**
+     * The single-column primary key of a table and its key sequences, found once per relation.
+     *
+     * The table is resolved to its OID on every call, so the same spelling (`t`) that means another relation after a
+     * change of `search_path` is looked up again. A sequence is named by OID for the same reason.
+     *
+     * @return array{primaryKey: ?string, sequences: list<array{column: string, sequence: string}>}
+     */
+    private function tableKeyOf(string $qualifiedTable): array
+    {
+        $none = ['primaryKey' => null, 'sequences' => []];
+        if ($this->pdo === null) {
+            return $none;
         }
 
+        $lookup = $this->pdo->prepare('SELECT to_regclass(?)::oid');
+        $lookup->execute([$qualifiedTable]);
+        $oid = $lookup->fetchColumn();
+        if (!is_string($oid) && !is_int($oid)) {
+            return $none; // not a relation visible under this name
+        }
+        $oid = (string)$oid;
+        $cached = $this->keySequences[$qualifiedTable] ?? null;
+        if ($cached !== null && $cached['oid'] === $oid) {
+            return ['primaryKey' => $cached['primaryKey'], 'sequences' => $cached['sequences']];
+        }
+
+        $primaryKeyStatement = $this->pdo->prepare(
+            'SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0] '
+            . 'WHERE i.indrelid = ?::oid AND i.indisprimary AND i.indnatts = 1'
+        );
+        $primaryKeyStatement->execute([$oid]);
+        $primaryKey = $primaryKeyStatement->fetchColumn();
+        $primaryKey = is_string($primaryKey) ? $primaryKey : null;
+
+        // serial and identity columns have an owned sequence; a hand-made DEFAULT nextval('seq') only shows in the default
+        $statement = $this->pdo->prepare(
+            'SELECT a.attname, '
+            . 'COALESCE(to_regclass(pg_get_serial_sequence(a.attrelid::regclass::text, a.attname)), '
+            . "to_regclass(substring(pg_get_expr(d.adbin, d.adrelid) from '^nextval\\(''(.+)''::regclass\\)\$')))::oid AS sequence, "
+            . '(SELECT i.indnatts FROM pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary) AS pk_columns, '
+            . 'EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary AND a.attnum = ANY (i.indkey)) AS in_pk '
+            . 'FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum '
+            . 'WHERE a.attrelid = ?::oid AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum'
+        );
+        $statement->execute([$oid]);
+
         $found = [];
-        if ($this->pdo !== null) {
-            // serial and identity columns have an owned sequence; a hand-made DEFAULT nextval('seq') only shows in the default
-            $statement = $this->pdo->prepare(
-                'SELECT a.attname, pg_get_serial_sequence(?, a.attname) AS sequence, pg_get_expr(d.adbin, d.adrelid) AS column_default '
-                . 'FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum '
-                . 'WHERE a.attrelid = ?::regclass AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum'
-            );
-            $statement->execute([$qualifiedTable, $qualifiedTable]);
-            foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                $sequence = (string)($row['sequence'] ?? '');
-                if ($sequence === '' && preg_match("/^nextval\\('(.+)'::regclass\\)$/", (string)($row['column_default'] ?? ''), $m) === 1) {
-                    $sequence = $m[1];
-                }
-                if ($sequence !== '') {
-                    $found[] = ['column' => (string)$row['attname'], 'sequence' => $sequence];
-                }
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $sequence = (string)($row['sequence'] ?? '');
+            if ($sequence === '') {
+                continue;
             }
+            // With a primary key, only a single-column one is an id: a secondary counter or a composite key is not
+            $primaryKeyColumns = $row['pk_columns'] ?? null;
+            if ($primaryKeyColumns !== null && ((int)$primaryKeyColumns !== 1 || !filter_var($row['in_pk'], FILTER_VALIDATE_BOOLEAN))) {
+                continue;
+            }
+            $found[] = ['column' => (string)$row['attname'], 'sequence' => $sequence];
         }
 
         // An empty answer is not kept: the table may get its key column later
-        if ($found !== []) {
-            $this->keySequences[$qualifiedTable] = $found;
+        if ($found !== [] || $primaryKey !== null) {
+            $this->keySequences[$qualifiedTable] = ['oid' => $oid, 'primaryKey' => $primaryKey, 'sequences' => $found];
         }
 
-        return $found;
+        return ['primaryKey' => $primaryKey, 'sequences' => $found];
     }
 
     /**

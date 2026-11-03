@@ -37,10 +37,10 @@ final class InsertStatementTests extends TestCase
         $insert = InsertStatement::parse('INSERT INTO t (id, amount, code) VALUES (:id, 5, :code)');
 
         $this->assertNotNull($insert);
-        $this->assertSame(42, $insert->suppliedInt('id', [':id' => 42]));
-        $this->assertSame(5, $insert->suppliedInt('amount', []));
-        $this->assertNull($insert->suppliedInt('code', [':code' => 'abc']), 'a non-numeric key is not an integer id');
-        $this->assertNull($insert->suppliedInt('missing', []));
+        $this->assertSame(42, $insert->suppliedId('id', [':id' => 42]));
+        $this->assertSame(5, $insert->suppliedId('amount', []));
+        $this->assertNull($insert->suppliedId('code', [':code' => 'abc']), 'a non-numeric key is not an integer id');
+        $this->assertNull($insert->suppliedId('missing', []));
     }
 
     public function testStatementsItDoesNotReadAsOneRowAreRejected(): void

@@ -18,6 +18,7 @@ use tommyknocker\pdodb\dialects\config\OracleConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\dialects\loaders\OracleFileLoader;
@@ -439,7 +440,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      * 0 when the table has no such sequence (a UUID or composite key) or the key is not a number: there is no generated
      * id to report.
      */
-    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): ?int
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
     {
         if ($this->pdo === null) {
             return null;
@@ -452,7 +453,15 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
 
         // The cache can be stale after DDL (a dropped and recreated table): on a failed CURRVAL look the table up again once
         for ($attempt = 0; $attempt < 2; $attempt++) {
-            $sequences = $this->keySequencesOf($insert->table);
+            $keyInfo = $this->keyInfoOf($insert->table);
+            // A key the statement supplies is the id of the row, whatever its type (a UUID, a text key)
+            if ($keyInfo['primaryKey'] !== null) {
+                $supplied = $insert->suppliedKey($keyInfo['primaryKey'], $params);
+                if ($supplied !== null) {
+                    return $supplied;
+                }
+            }
+            $sequences = $keyInfo['sequences'];
             if ($sequences === []) {
                 return 0;
             }
@@ -461,7 +470,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             foreach ($sequences as $candidate) {
                 if ($candidate['column'] !== null && $insert->positionOf($candidate['column']) !== null) {
                     // The caller chose the key: it is the id (the sequence was not used, so its CURRVAL is an older one)
-                    return $insert->suppliedInt($candidate['column'], $params) ?? 0;
+                    return $insert->suppliedId($candidate['column'], $params) ?? 0;
                 }
                 $generated ??= $candidate['sequence'];
             }
@@ -473,7 +482,8 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
                 $query = $this->pdo->query('SELECT ' . $this->quoteIdentifier($generated) . '.CURRVAL FROM DUAL');
                 $id = $query === false ? false : $query->fetchColumn();
                 if (is_numeric($id)) {
-                    return (int)$id;
+                    // Kept exact: a NUMBER(28) key beyond PHP_INT_MAX comes back as a string, not clamped
+                    return InsertId::from($id) ?? 0;
                 }
             } catch (PDOException) {
                 // sequence dropped, or not used in this session yet
@@ -485,8 +495,8 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     }
 
     /**
-     * @var array<string, array{objectId: string, sequences: list<array{sequence: string, column: ?string}>}> Key sequences by
-     *                                                                                                        upper-cased table name
+     * @var array<string, array{objectId: string, primaryKey: ?string, sequences: list<array{sequence: string, column: ?string}>}> Key info by
+     *                                                                                                                             upper-cased table name
      */
     private array $keySequences = [];
 
@@ -497,26 +507,35 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      * insert never touched it. The trigger that does the work says which sequence it calls and which column it sets
      * (`SELECT users_seq.NEXTVAL INTO :NEW."ID" FROM DUAL`).
      *
-     * @return list<array{sequence: string, column: ?string}>
+     * @return array{primaryKey: ?string, sequences: list<array{sequence: string, column: ?string}>}
      */
-    private function keySequencesOf(string $table): array
+    private function keyInfoOf(string $table): array
     {
         $key = strtoupper($table);
         // A dropped and recreated table (also by raw DDL) is a new object with new sequences: the object id tells
+        $none = ['primaryKey' => null, 'sequences' => []];
         if ($this->pdo === null) {
-            return [];
+            return $none;
         }
         $lookup = $this->pdo->prepare("SELECT OBJECT_ID FROM USER_OBJECTS WHERE OBJECT_NAME = :t AND OBJECT_TYPE = 'TABLE'");
         if ($lookup === false || !$lookup->execute(['t' => $key])) {
-            return [];
+            return $none;
         }
         $objectId = (string)($lookup->fetchColumn() ?: '');
         if ($objectId === '') {
-            return [];
+            return $none;
         }
         if (($this->keySequences[$key]['objectId'] ?? null) === $objectId) {
-            return $this->keySequences[$key]['sequences'];
+            return ['primaryKey' => $this->keySequences[$key]['primaryKey'], 'sequences' => $this->keySequences[$key]['sequences']];
         }
+
+        $primaryKeyStatement = $this->pdo->prepare(
+            'SELECT cc.COLUMN_NAME FROM USER_CONSTRAINTS c JOIN USER_CONS_COLUMNS cc ON cc.CONSTRAINT_NAME = c.CONSTRAINT_NAME '
+            . "WHERE c.TABLE_NAME = :t AND c.CONSTRAINT_TYPE = 'P'"
+        );
+        $primaryKeyStatement->execute(['t' => $key]);
+        $primaryKeyColumns = $primaryKeyStatement->fetchAll(PDO::FETCH_COLUMN);
+        $primaryKey = count($primaryKeyColumns) === 1 ? (string)$primaryKeyColumns[0] : null;
 
         $found = [];
         $stmt = $this->pdo->prepare(
@@ -562,9 +581,9 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             // a server without identity columns: the triggers above are all there is
         }
 
-        $this->keySequences[$key] = ['objectId' => $objectId, 'sequences' => $found];
+        $this->keySequences[$key] = ['objectId' => $objectId, 'primaryKey' => $primaryKey, 'sequences' => $found];
 
-        return $found;
+        return ['primaryKey' => $primaryKey, 'sequences' => $found];
     }
 
     /**

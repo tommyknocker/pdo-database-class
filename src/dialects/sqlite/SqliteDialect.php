@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects\sqlite;
 
 use InvalidArgumentException;
 use PDO;
+use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\SqliteCatalogQueriesTrait;
@@ -14,6 +15,8 @@ use tommyknocker\pdodb\dialects\config\SQLiteConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\InsertStatement;
+use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
 use tommyknocker\pdodb\dialects\traits\OnConflictUpsertTrait;
 use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\ResourceException;
@@ -28,11 +31,117 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\QueryConstants;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface
+class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface
 {
     use OnConflictUpsertTrait;
 
     use SqliteCatalogQueriesTrait;
+    /**
+     * @var array<string, array{version: int, key: ?string, withoutRowid: bool, returning: ?string}> What is known of a table's key, by name
+     */
+    private array $rowidKeys = [];
+
+    /**
+     * {@inheritDoc}
+     *
+     * `PDO::lastInsertId()` is the rowid of the last successful INSERT on the connection. It is this row's id only when
+     * the statement inserted a row and the table's key is that rowid, so it is not trusted otherwise:
+     *  - an INSERT OR IGNORE that skipped the row inserted nothing: no id;
+     *  - a table whose key is text, composite or absent has no integer id (its rowid is an internal detail);
+     *  - an upsert whose conflict branch updated the row leaves the last rowid alone: only a supplied key is an id.
+     */
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
+    {
+        if ($this->pdo === null) {
+            return null;
+        }
+
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null) {
+            return null;
+        }
+        if ($stmt->rowCount() === 0) {
+            return 0;
+        }
+
+        $table = $this->rowidKeyOf($insert->table);
+        if ($table['key'] === null) {
+            return 0;
+        }
+        if ($insert->positionOf($table['key']) !== null) {
+            return $insert->suppliedId($table['key'], $params) ?? 0;
+        }
+        if ($table['withoutRowid'] || preg_match('/\bON\s+CONFLICT\b/i', $insert->tail) === 1) {
+            return 0;
+        }
+
+        return null; // a plain INSERT: PDO::lastInsertId() is this row's rowid
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * Appends `RETURNING <key>` (SQLite 3.35+): the single primary key of the table whatever its type, or the rowid of a
+     * table without one. The key then comes from the statement itself, so an upsert that updated a row names that row
+     * and a skipped `INSERT OR IGNORE` names none.
+     */
+    public function insertIdReturningSql(string $sql): ?string
+    {
+        if ($this->pdo === null) {
+            return null;
+        }
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null || preg_match('/\bRETURNING\b/i', $insert->tail) === 1) {
+            return null;
+        }
+        $returning = $this->rowidKeyOf($insert->table)['returning'];
+        if ($returning === null) {
+            return null;
+        }
+
+        return rtrim($sql, " \t\n\r;") . ' RETURNING ' . ($returning === 'rowid' ? 'rowid' : $this->quoteIdentifier($returning));
+    }
+
+    /**
+     * The single INTEGER PRIMARY KEY column of a table (the rowid alias), cached until the schema changes.
+     *
+     * @return array{version: int, key: ?string, withoutRowid: bool, returning: ?string}
+     */
+    private function rowidKeyOf(string $table): array
+    {
+        $pdo = $this->pdo;
+        assert($pdo !== null);
+
+        $versionStatement = $pdo->query('PRAGMA schema_version');
+        $version = $versionStatement === false ? -1 : (int)$versionStatement->fetchColumn();
+        $cached = $this->rowidKeys[$table] ?? null;
+        if ($cached !== null && $cached['version'] === $version) {
+            return $cached;
+        }
+
+        $primaryKey = [];
+        $columns = $pdo->query('PRAGMA table_info(' . $this->quoteIdentifier($table) . ')');
+        foreach ($columns === false ? [] : $columns->fetchAll(PDO::FETCH_ASSOC) as $column) {
+            if ((int)$column['pk'] > 0) {
+                $primaryKey[] = $column;
+            }
+        }
+        $key = count($primaryKey) === 1 && strtoupper(trim((string)$primaryKey[0]['type'])) === 'INTEGER'
+            ? (string)$primaryKey[0]['name']
+            : null;
+        // The column RETURNING reads: the single primary key whatever its type, the rowid of a table without one
+        $returning = count($primaryKey) === 1 ? (string)$primaryKey[0]['name'] : (count($primaryKey) === 0 ? 'rowid' : null);
+
+        $definition = $pdo->prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?");
+        $definition->execute([$table]);
+        $withoutRowid = preg_match('/\)\s*WITHOUT\s+ROWID\s*;?\s*$/i', (string)$definition->fetchColumn()) === 1;
+
+        if ($returning === 'rowid' && $withoutRowid) {
+            $returning = null;
+        }
+
+        return $this->rowidKeys[$table] = ['version' => $version, 'key' => $key, 'withoutRowid' => $withoutRowid, 'returning' => $returning];
+    }
     /** @var SqliteFeatureSupport Feature support instance */
     private SqliteFeatureSupport $featureSupport;
 
