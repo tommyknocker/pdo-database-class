@@ -154,4 +154,21 @@ final class BuilderReuseTests extends BaseSharedTestCase
 
         $this->assertIsArray(self::$db->find()->from('test_coverage')->limit(0)->offset(0)->get(), 'zero stays valid');
     }
+
+    public function testScalarAndColumnReadersWorkWithObjectRows(): void
+    {
+        self::$db->rawQuery('DROP TABLE IF EXISTS object_scalars');
+        self::$db->rawQuery('CREATE TABLE object_scalars (id INTEGER PRIMARY KEY, name TEXT, flag INTEGER)');
+        self::$db->find()->table('object_scalars')->insert(['id' => 42, 'name' => 'first', 'flag' => 0]);
+        self::$db->find()->table('object_scalars')->insert(['id' => 43, 'name' => null, 'flag' => 1]);
+        $rows = static fn () => self::$db->find()->from('object_scalars');
+
+        $this->assertSame('first', $rows()->select('name')->where('id', 42)->asObject()->getValue());
+        $this->assertNull($rows()->select('name')->where('id', 43)->asObject()->getValue(), 'a NULL value');
+        $this->assertNull($rows()->select('name')->where('id', 99)->asObject()->getValue(), 'no row');
+        $this->assertSame(0, $rows()->select('flag')->where('id', 42)->asObject()->getValue(), 'a falsy value is a value');
+        $this->assertSame('first', $rows()->select('name AS n')->where('id', 42)->asObject()->getValue(), 'an alias');
+        $this->assertSame(['first', null], $rows()->select('name')->orderBy('id')->asObject()->getColumn());
+        $this->assertSame([42 => 'first', 43 => null], $rows()->select(['id', 'name'])->orderBy('id')->asObject()->index('id')->getColumn('name'));
+    }
 }

@@ -262,11 +262,13 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     {
         $indexed = [];
         foreach ($result as $row) {
-            if (!isset($row[$columnName])) {
+            // asObject() rows are stdClass: the key is read from the property
+            $key = is_object($row) ? ($row->{$columnName} ?? null) : ($row[$columnName] ?? null);
+            if ($key === null) {
                 // If column doesn't exist, skip indexing for this row
                 continue;
             }
-            $indexed[$row[$columnName]] = $row;
+            $indexed[$key] = $row;
         }
         return $indexed;
     }
@@ -528,7 +530,8 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
     public function getColumn(?string $name = null): array
     {
         // Cache complete rows so different selected columns cannot collide.
-        $rows = $this->get();
+        // asObject() returns stdClass rows; the column is read the same way from either shape.
+        $rows = array_map(static fn (mixed $row): mixed => is_object($row) ? (array)$row : $row, $this->get());
 
         // Determine which column to extract
         $key = $name;
@@ -608,6 +611,9 @@ class SelectQueryBuilder implements SelectQueryBuilderInterface, ConnectionAware
                 $this->cacheResultType = 'value';
             }
 
+            if (is_object($row)) {
+                $row = (array)$row; // asObject()
+            }
             if (!is_array($row) || empty($row)) {
                 return null;
             }
