@@ -88,4 +88,15 @@ final class InsertIdTests extends BaseSqliteTestCase
 
         $this->assertSame(1, self::$db->find()->table('ids_later')->insert(['note' => 'b']));
     }
+
+    public function testATempTableThatShadowsATableIsLookedUpAgain(): void
+    {
+        self::$db->rawQuery('CREATE TABLE shadowed (main_key TEXT PRIMARY KEY, note TEXT)');
+        $this->assertSame('main-a', self::$db->find()->table('shadowed')->insert(['main_key' => 'main-a', 'note' => 'a']));
+
+        // From now on the name means the TEMP table, which has another key column
+        self::$db->rawQuery('CREATE TEMP TABLE shadowed (temp_key TEXT PRIMARY KEY, note TEXT)');
+
+        $this->assertSame('temp-a', self::$db->find()->table('shadowed')->insert(['temp_key' => 'temp-a', 'note' => 'a']));
+    }
 }

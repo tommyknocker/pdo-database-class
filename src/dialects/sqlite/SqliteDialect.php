@@ -37,7 +37,7 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface, 
 
     use SqliteCatalogQueriesTrait;
     /**
-     * @var array<string, array{version: int, key: ?string, withoutRowid: bool, returning: ?string}> What is known of a table's key, by name
+     * @var array<string, array{version: string, key: ?string, withoutRowid: bool, returning: ?string}> What is known of a table's key, by name
      */
     private array $rowidKeys = [];
 
@@ -105,15 +105,20 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface, 
     /**
      * The single INTEGER PRIMARY KEY column of a table (the rowid alias), cached until the schema changes.
      *
-     * @return array{version: int, key: ?string, withoutRowid: bool, returning: ?string}
+     * @return array{version: string, key: ?string, withoutRowid: bool, returning: ?string}
      */
     private function rowidKeyOf(string $table): array
     {
         $pdo = $this->pdo;
         assert($pdo !== null);
 
-        $versionStatement = $pdo->query('PRAGMA schema_version');
-        $version = $versionStatement === false ? -1 : (int)$versionStatement->fetchColumn();
+        // A name resolves to a TEMP table before a table of the main database, and each schema has its own version
+        $versions = [];
+        foreach (['main', 'temp'] as $schema) {
+            $versionStatement = $pdo->query("PRAGMA {$schema}.schema_version");
+            $versions[] = $versionStatement === false ? '-1' : (string)$versionStatement->fetchColumn();
+        }
+        $version = implode(':', $versions);
         $cached = $this->rowidKeys[$table] ?? null;
         if ($cached !== null && $cached['version'] === $version) {
             return $cached;
@@ -132,7 +137,11 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface, 
         // The column RETURNING reads: the single primary key whatever its type, the rowid of a table without one
         $returning = count($primaryKey) === 1 ? (string)$primaryKey[0]['name'] : (count($primaryKey) === 0 ? 'rowid' : null);
 
-        $definition = $pdo->prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?");
+        // the TEMP table, when there is one of that name, is the one the statement writes to
+        $definition = $pdo->prepare(
+            'SELECT sql FROM (SELECT sql, name, type, 0 AS rank FROM sqlite_temp_master UNION ALL SELECT sql, name, type, 1 FROM sqlite_master) '
+            . "WHERE type = 'table' AND name = ? ORDER BY rank LIMIT 1"
+        );
         $definition->execute([$table]);
         $withoutRowid = preg_match('/\)\s*WITHOUT\s+ROWID\s*;?\s*$/i', (string)$definition->fetchColumn()) === 1;
 

@@ -43,7 +43,7 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
      * {@inheritDoc}
      *
      * The connection reports only AUTO_INCREMENT values. The id of the written row is therefore:
-     *  - nothing, when a plain insert wrote no row (`INSERT IGNORE` skipped it);
+     *  - nothing, when a plain insert wrote no row (`INSERT IGNORE` skipped it), and for an upsert that updated a row;
      *  - the key the statement supplied for the table's single-column primary key, of any type (a UUID, a text key);
      *  - otherwise the connection's value (read first, before any other query), when that key is AUTO_INCREMENT;
      *  - nothing for a key the database fills in from a default, which MySQL cannot report.
@@ -60,9 +60,16 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
         }
         // The connection's id belongs to the last statement: read it before the catalog query below replaces it
         $connectionId = $this->pdo->lastInsertId();
-        $upsert = preg_match('/\bON\s+DUPLICATE\s+KEY\b/i', $insert->tail) === 1;
-        if (!$upsert && $stmt->rowCount() === 0) {
-            return 0;
+        $affected = $stmt->rowCount();
+        if (preg_match('/\bON\s+DUPLICATE\s+KEY\b/i', $insert->tail) === 1) {
+            // An upsert reports 1 for an inserted row, 2 for an updated one and 0 for an update that changed nothing. When
+            // the row was updated, neither the key the statement carried nor the connection's id (still the previous
+            // insert's) names it, unless the update says so with LAST_INSERT_ID(<key>).
+            if ($affected !== 1) {
+                return preg_match('/\bLAST_INSERT_ID\s*\(/i', $insert->tail) === 1 ? (InsertId::from($connectionId) ?? 0) : 0;
+            }
+        } elseif ($affected === 0) {
+            return 0; // INSERT IGNORE skipped the row
         }
 
         $primaryKey = $this->primaryKeyOf($insert, true);

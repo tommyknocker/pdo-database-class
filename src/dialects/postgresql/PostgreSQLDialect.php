@@ -2558,25 +2558,25 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             return $none;
         }
 
-        $lookup = $this->pdo->prepare('SELECT to_regclass(?)::oid');
+        // One round trip answers both questions. The OID says which relation the name means now (a changed search_path is
+        // another table). The primary key's name is read every time, not cached: RENAME COLUMN keeps the OID, and the name
+        // is written into the INSERT.
+        $lookup = $this->pdo->prepare(
+            'SELECT r.oid::text AS oid, (SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid '
+            . 'AND a.attnum = i.indkey[0] WHERE i.indrelid = r.oid AND i.indisprimary AND i.indnatts = 1) AS primary_key '
+            . 'FROM (SELECT to_regclass(?)::oid AS oid) r'
+        );
         $lookup->execute([$qualifiedTable]);
-        $oid = $lookup->fetchColumn();
-        if (!is_string($oid) && !is_int($oid)) {
+        $row = $lookup->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row) || !is_string($row['oid'] ?? null)) {
             return $none; // not a relation visible under this name
         }
-        $oid = (string)$oid;
+        $oid = $row['oid'];
+        $primaryKey = is_string($row['primary_key'] ?? null) ? $row['primary_key'] : null;
         $cached = $this->keySequences[$qualifiedTable] ?? null;
-        if ($cached !== null && $cached['oid'] === $oid) {
-            return ['primaryKey' => $cached['primaryKey'], 'sequences' => $cached['sequences']];
+        if ($cached !== null && $cached['oid'] === $oid && $cached['primaryKey'] === $primaryKey) {
+            return ['primaryKey' => $primaryKey, 'sequences' => $cached['sequences']];
         }
-
-        $primaryKeyStatement = $this->pdo->prepare(
-            'SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0] '
-            . 'WHERE i.indrelid = ?::oid AND i.indisprimary AND i.indnatts = 1'
-        );
-        $primaryKeyStatement->execute([$oid]);
-        $primaryKey = $primaryKeyStatement->fetchColumn();
-        $primaryKey = is_string($primaryKey) ? $primaryKey : null;
 
         // serial and identity columns have an owned sequence; a hand-made DEFAULT nextval('seq') only shows in the default
         $statement = $this->pdo->prepare(

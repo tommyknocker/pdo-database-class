@@ -495,8 +495,8 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
     }
 
     /**
-     * @var array<string, array{objectId: string, primaryKey: ?string, sequences: list<array{sequence: string, column: ?string}>}> Key info by
-     *                                                                                                                             upper-cased table name
+     * @var array<string, array{objectId: string, primaryKey: ?string, composite: bool, sequences: list<array{sequence: string, column: ?string}>}> Key info by
+     *                                                                                                                                              upper-cased table name
      */
     private array $keySequences = [];
 
@@ -507,13 +507,13 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      * insert never touched it. The trigger that does the work says which sequence it calls and which column it sets
      * (`SELECT users_seq.NEXTVAL INTO :NEW."ID" FROM DUAL`).
      *
-     * @return array{primaryKey: ?string, sequences: list<array{sequence: string, column: ?string}>}
+     * @return array{primaryKey: ?string, composite: bool, sequences: list<array{sequence: string, column: ?string}>}
      */
     private function keyInfoOf(string $table): array
     {
         $key = strtoupper($table);
         // A dropped and recreated table (also by raw DDL) is a new object with new sequences: the object id tells
-        $none = ['primaryKey' => null, 'sequences' => []];
+        $none = ['primaryKey' => null, 'composite' => false, 'sequences' => []];
         if ($this->pdo === null) {
             return $none;
         }
@@ -526,7 +526,11 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             return $none;
         }
         if (($this->keySequences[$key]['objectId'] ?? null) === $objectId) {
-            return ['primaryKey' => $this->keySequences[$key]['primaryKey'], 'sequences' => $this->keySequences[$key]['sequences']];
+            return [
+                'primaryKey' => $this->keySequences[$key]['primaryKey'],
+                'composite' => $this->keySequences[$key]['composite'],
+                'sequences' => $this->keySequences[$key]['sequences'],
+            ];
         }
 
         $primaryKeyStatement = $this->pdo->prepare(
@@ -536,6 +540,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         $primaryKeyStatement->execute(['t' => $key]);
         $primaryKeyColumns = $primaryKeyStatement->fetchAll(PDO::FETCH_COLUMN);
         $primaryKey = count($primaryKeyColumns) === 1 ? (string)$primaryKeyColumns[0] : null;
+        $composite = count($primaryKeyColumns) > 1;
 
         $found = [];
         $stmt = $this->pdo->prepare(
@@ -581,9 +586,17 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             // a server without identity columns: the triggers above are all there is
         }
 
-        $this->keySequences[$key] = ['objectId' => $objectId, 'primaryKey' => $primaryKey, 'sequences' => $found];
+        // With a primary key, only the sequence that fills it is an id: a secondary identity column is not, and a
+        // composite key has no single id
+        if ($composite) {
+            $found = [];
+        } elseif ($primaryKey !== null) {
+            $found = array_values(array_filter($found, static fn (array $f): bool => $f['column'] === null || $f['column'] === $primaryKey));
+        }
 
-        return ['primaryKey' => $primaryKey, 'sequences' => $found];
+        $this->keySequences[$key] = ['objectId' => $objectId, 'primaryKey' => $primaryKey, 'composite' => $composite, 'sequences' => $found];
+
+        return ['primaryKey' => $primaryKey, 'composite' => $composite, 'sequences' => $found];
     }
 
     /**

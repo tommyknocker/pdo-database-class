@@ -104,4 +104,20 @@ final class InsertIdTests extends BaseMySQLTestCase
 
         $this->assertSame('18446744073709551000', $id, 'an int cast would have returned PHP_INT_MAX');
     }
+
+    public function testAnUpsertThatConflictsOnAnotherUniqueKeyDoesNotReturnTheKeyItCarried(): void
+    {
+        self::$db->find()->table('insert_id_auto')->insert(['name' => 'a']); // id 1
+
+        // The row is found by name and updated; the id 999 in the statement never reaches the table
+        $result = self::$db->find()->table('insert_id_auto')->onDuplicate(['name'])->insert(['id' => 999, 'name' => 'a']);
+
+        $this->assertNotSame(999, $result);
+        $this->assertSame([1], array_map(static fn (array $r): int => (int)$r['id'], self::$db->find()->from('insert_id_auto')->get()));
+    }
+
+    public function testAnUpsertThatInsertsReturnsItsKey(): void
+    {
+        $this->assertSame(7, self::$db->find()->table('insert_id_auto')->onDuplicate(['name'])->insert(['id' => 7, 'name' => 'fresh']));
+    }
 }

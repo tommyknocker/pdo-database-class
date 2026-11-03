@@ -215,4 +215,17 @@ final class InsertIdTests extends BasePostgreSQLTestCase
 
         $this->assertSame([1, 101], [$inA, $inB]);
     }
+
+    public function testARenamedPrimaryKeyColumnDoesNotBreakTheNextInsert(): void
+    {
+        self::$db->schema()->dropTableIfExists('insert_id_serial');
+        self::$db->rawQuery('CREATE TABLE insert_id_serial (id SERIAL PRIMARY KEY, amount INT)');
+        $first = self::$db->find()->table('insert_id_serial')->insert(['amount' => 1]);
+
+        // RENAME COLUMN keeps the relation's OID, so the name has to be read afresh
+        self::$db->rawQuery('ALTER TABLE insert_id_serial RENAME COLUMN id TO new_id');
+        $second = self::$db->find()->table('insert_id_serial')->insert(['amount' => 2]);
+
+        $this->assertSame([1, 2], [$first, $second]);
+    }
 }
