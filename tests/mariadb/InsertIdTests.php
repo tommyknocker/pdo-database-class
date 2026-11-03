@@ -32,10 +32,56 @@ final class InsertIdTests extends BaseMariaDBTestCase
         $this->assertSame(3, self::$db->transaction(fn () => self::$db->find()->table('insert_id_auto')->insert(['name' => 'c'])));
     }
 
-    public function testAStringKeyHasNoNumericIdToReport(): void
+    public function testATextKeyIsReturnedAsTheKey(): void
     {
-        $this->assertNull(self::$db->find()->table('insert_id_text')->insert(['id' => 'abc', 'amount' => 1]));
-        $this->assertNull(self::$db->find()->table('insert_id_text')->insert(['id' => 'def', 'amount' => 2]));
+        $this->assertSame('abc', self::$db->find()->table('insert_id_text')->insert(['id' => 'abc', 'amount' => 1]));
+        $this->assertSame('def', self::$db->find()->table('insert_id_text')->insert(['id' => 'def', 'amount' => 2]));
+    }
+
+    public function testAKeyTheDatabaseGeneratesIsReturned(): void
+    {
+        self::$db->rawQuery('DROP TABLE IF EXISTS insert_id_generated');
+        self::$db->rawQuery('CREATE TABLE insert_id_generated (id CHAR(36) DEFAULT (UUID()) PRIMARY KEY, note VARCHAR(20))');
+
+        try {
+            $id = self::$db->find()->table('insert_id_generated')->insert(['note' => 'x']);
+            $stored = self::$db->rawQueryValue('SELECT id FROM insert_id_generated');
+        } finally {
+            self::$db->rawQuery('DROP TABLE IF EXISTS insert_id_generated');
+        }
+
+        $this->assertMatchesRegularExpression('/^[0-9a-f]{8}-[0-9a-f]{4}-/', (string)$id);
+        $this->assertSame($stored, $id);
+    }
+
+    public function testASkippedInsertOfATextKeyReportsNoId(): void
+    {
+        self::$db->find()->table('insert_id_text')->insert(['id' => 'abc', 'amount' => 1]);
+
+        $this->assertNull(self::$db->find()->table('insert_id_text')->option('IGNORE')->insert(['id' => 'abc', 'amount' => 2]));
+    }
+
+    public function testACompositeKeyHasNoSingleId(): void
+    {
+        self::$db->rawQuery('DROP TABLE IF EXISTS insert_id_composite');
+        self::$db->rawQuery('CREATE TABLE insert_id_composite (a INT, b INT, PRIMARY KEY (a, b))');
+
+        try {
+            $this->assertNull(self::$db->find()->table('insert_id_composite')->insert(['a' => 1, 'b' => 2]));
+        } finally {
+            self::$db->rawQuery('DROP TABLE IF EXISTS insert_id_composite');
+        }
+    }
+
+    public function testAnUpsertOfAnAutoIncrementKeyReportsTheRowItWrote(): void
+    {
+        $first = self::$db->find()->table('insert_id_auto')->insert(['name' => 'a']);
+        self::$db->find()->table('insert_id_auto')->insert(['name' => 'b']);
+
+        $updated = self::$db->find()->table('insert_id_auto')->onDuplicate(['name'], 'name')->insert(['name' => 'a']);
+
+        $this->assertSame(1, $first);
+        $this->assertSame(1, $updated, 'the row the conflict updated, not the last auto-increment value');
     }
 
     public function testASkippedDuplicateReportsNoId(): void

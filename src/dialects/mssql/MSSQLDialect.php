@@ -15,8 +15,11 @@ use tommyknocker\pdodb\dialects\config\MSSQLConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
+use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
+use tommyknocker\pdodb\dialects\traits\InsertKeyCacheTrait;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
@@ -27,9 +30,53 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface
+class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface
 {
+    use InsertKeyCacheTrait;
+
     use MssqlCatalogQueriesTrait;
+
+    /**
+     * {@inheritDoc}
+     *
+     * The connection reports only IDENTITY values. For a table whose single-column primary key is something else (a
+     * UNIQUEIDENTIFIER filled by NEWID(), a text key) the key of the written row is asked for with
+     * `OUTPUT INSERTED.<key>`, placed before VALUES. A table with an enabled trigger cannot use a plain OUTPUT (error
+     * 334), so it keeps the connection's answer, as does an IDENTITY key.
+     */
+    public function insertIdReturningSql(string $sql): ?string
+    {
+        if ($this->pdo === null) {
+            return null;
+        }
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null || preg_match('/\bOUTPUT\b/i', substr($sql, 0, $insert->valuesOffset)) === 1) {
+            return null;
+        }
+        if ($this->recallConnectionKey($insert->qualifiedTable) !== null) {
+            return null;
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT c.name AS column_name, c.is_identity, '
+            . '(SELECT COUNT(*) FROM sys.triggers t WHERE t.parent_id = i.object_id AND t.is_disabled = 0) AS triggers '
+            . 'FROM sys.indexes i '
+            . 'JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id '
+            . 'JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id '
+            . 'WHERE i.object_id = OBJECT_ID(?) AND i.is_primary_key = 1'
+        );
+        $statement->execute([$insert->qualifiedTable]);
+        $key = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        if (count($key) !== 1 || (int)$key[0]['is_identity'] === 1 || (int)$key[0]['triggers'] > 0) {
+            $this->rememberConnectionKey($insert->qualifiedTable, count($key) === 1 ? (string)$key[0]['column_name'] : null);
+
+            return null;
+        }
+
+        return substr($sql, 0, $insert->valuesOffset) . 'OUTPUT INSERTED.' . $this->quoteIdentifier((string)$key[0]['column_name']) . ' '
+            . substr($sql, $insert->valuesOffset);
+    }
     /** @var MSSQLFeatureSupport Feature support instance */
     private MSSQLFeatureSupport $featureSupport;
 

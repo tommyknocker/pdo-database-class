@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\dialects\mysqlfamily;
 use Generator;
 use InvalidArgumentException;
 use PDO;
+use PDOStatement;
 use RuntimeException;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\MySqlCatalogQueriesTrait;
@@ -16,6 +17,8 @@ use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\FeatureSupportInterface;
+use tommyknocker\pdodb\dialects\InsertId;
+use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
@@ -29,6 +32,81 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQueriesInterface
 {
     use MySqlCatalogQueriesTrait;
+    private const int PRIMARY_KEY_CACHE_SECONDS = 30;
+
+    /**
+     * @var array<string, array{until: float, key: ?string, autoIncrement: bool}> Single-column primary key by table
+     */
+    private array $primaryKeys = [];
+
+    /**
+     * {@inheritDoc}
+     *
+     * The connection reports only AUTO_INCREMENT values. The id of the written row is therefore:
+     *  - nothing, when a plain insert wrote no row (`INSERT IGNORE` skipped it);
+     *  - the key the statement supplied for the table's single-column primary key, of any type (a UUID, a text key);
+     *  - otherwise the connection's value (read first, before any other query), when that key is AUTO_INCREMENT;
+     *  - nothing for a key the database fills in from a default, which MySQL cannot report.
+     * A table without a single-column primary key keeps the connection's answer.
+     */
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
+    {
+        if ($this->pdo === null) {
+            return null;
+        }
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null) {
+            return null;
+        }
+        // The connection's id belongs to the last statement: read it before the catalog query below replaces it
+        $connectionId = $this->pdo->lastInsertId();
+        $upsert = preg_match('/\bON\s+DUPLICATE\s+KEY\b/i', $insert->tail) === 1;
+        if (!$upsert && $stmt->rowCount() === 0) {
+            return 0;
+        }
+
+        $primaryKey = $this->primaryKeyOf($insert, true);
+        if ($primaryKey['key'] === null) {
+            return null;
+        }
+        $supplied = $insert->suppliedKey($primaryKey['key'], $params);
+        if ($supplied !== null) {
+            return $supplied;
+        }
+
+        return $primaryKey['autoIncrement'] ? (InsertId::from($connectionId) ?? 0) : 0;
+    }
+
+    /**
+     * The single-column primary key of the table an INSERT writes to, and whether it is AUTO_INCREMENT.
+     *
+     * @return array{key: ?string, autoIncrement: bool}
+     */
+    protected function primaryKeyOf(InsertStatement $insert, bool $useCache): array
+    {
+        $known = $this->primaryKeys[$insert->qualifiedTable] ?? null;
+        if ($useCache && $known !== null && $known['until'] > microtime(true)) {
+            return ['key' => $known['key'], 'autoIncrement' => $known['autoIncrement']];
+        }
+
+        $parts = preg_split('/\s*\.\s*/', $insert->qualifiedTable) ?: [$insert->qualifiedTable];
+        $schema = count($parts) > 1 ? trim($parts[count($parts) - 2], '`" ') : null;
+        $pdo = $this->pdo;
+        assert($pdo !== null);
+        $statement = $pdo->prepare(
+            'SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS '
+            . "WHERE TABLE_SCHEMA = COALESCE(?, DATABASE()) AND TABLE_NAME = ? AND COLUMN_KEY = 'PRI'"
+        );
+        $statement->execute([$schema, $insert->table]);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        $found = count($rows) === 1
+            ? ['key' => (string)$rows[0]['COLUMN_NAME'], 'autoIncrement' => stripos((string)$rows[0]['EXTRA'], 'auto_increment') !== false]
+            : ['key' => null, 'autoIncrement' => false];
+        $this->primaryKeys[$insert->qualifiedTable] = ['until' => microtime(true) + self::PRIMARY_KEY_CACHE_SECONDS] + $found;
+
+        return $found;
+    }
 
     public function doubleQuotedTextIsLiteral(): bool
     {

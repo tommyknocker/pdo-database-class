@@ -4,20 +4,68 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\dialects\mariadb;
 
+use PDO;
 use RuntimeException;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\FeatureSupportInterface;
+use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlBuilder;
 use tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect;
 use tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDmlBuilder;
 use tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter;
+use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
 use tommyknocker\pdodb\PdoDb;
 use tommyknocker\pdodb\query\analysis\parsers\ExplainParserInterface;
 use tommyknocker\pdodb\query\analysis\parsers\MariaDBExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 
-class MariaDBDialect extends MySQLFamilyDialect
+class MariaDBDialect extends MySQLFamilyDialect implements DialectInsertReturningInterface
 {
+    private ?bool $insertReturning = null;
+
+    /**
+     * {@inheritDoc}
+     *
+     * MariaDB 10.5+ can return the key of the written row. It is asked for when the connection cannot report it: a
+     * single-column primary key that is not AUTO_INCREMENT (a UUID, a text key, a key filled from a default), and any
+     * `ON DUPLICATE KEY UPDATE`, whose update that changes nothing leaves the connection with no id. A plain insert into an
+     * AUTO_INCREMENT table stays on the connection and needs no extra query.
+     */
+    public function insertIdReturningSql(string $sql): ?string
+    {
+        if ($this->pdo === null || !$this->serverSupportsInsertReturning()) {
+            return null;
+        }
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null || preg_match('/\bRETURNING\b/i', $insert->tail) === 1) {
+            return null;
+        }
+        $upsert = preg_match('/\bON\s+DUPLICATE\s+KEY\b/i', $insert->tail) === 1;
+
+        $primaryKey = $this->primaryKeyOf($insert, true);
+        if ($primaryKey['key'] !== null && !$primaryKey['autoIncrement']) {
+            // The column name goes into the SQL: look it up afresh, so an altered table cannot break the insert
+            $primaryKey = $this->primaryKeyOf($insert, false);
+        }
+        if ($primaryKey['key'] === null || ($primaryKey['autoIncrement'] && !$upsert)) {
+            return null; // no single key, or a plain insert the connection answers
+        }
+
+        return rtrim($sql, " \t\n\r;") . ' RETURNING ' . $this->quoteIdentifier($primaryKey['key']);
+    }
+
+    private function serverSupportsInsertReturning(): bool
+    {
+        if ($this->insertReturning === null) {
+            // "5.5.5-10.6.12-MariaDB": older replication-compatible prefix before the real version
+            $version = preg_replace('/^5\.5\.5-/', '', (string)$this->pdo?->getAttribute(PDO::ATTR_SERVER_VERSION));
+            $this->insertReturning = preg_match('/^(\d+)\.(\d+)/', (string)$version, $m) === 1
+                && ((int)$m[1] > 10 || ((int)$m[1] === 10 && (int)$m[2] >= 5));
+        }
+
+        return $this->insertReturning;
+    }
+
     /**
      * {@inheritDoc}
      */
