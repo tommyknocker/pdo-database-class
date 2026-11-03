@@ -436,7 +436,8 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      *  - the value the insert supplied for that column, when it supplied one (the sequence was not used, so its
      *    CURRVAL would be the id of an earlier insert);
      *  - otherwise CURRVAL of the sequence, which is this session's value from the insert that just ran.
-     * Null when the table has no such sequence (a UUID or composite key): there is no generated id to report.
+     * 0 when the table has no such sequence (a UUID or composite key) or the key is not a number: there is no generated
+     * id to report.
      */
     public function extractInsertId(PDOStatement $stmt, string $sql, array $params): ?int
     {
@@ -453,19 +454,19 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         for ($attempt = 0; $attempt < 2; $attempt++) {
             $sequences = $this->keySequencesOf($insert->table);
             if ($sequences === []) {
-                return null;
+                return 0;
             }
 
             $generated = null;
             foreach ($sequences as $candidate) {
                 if ($candidate['column'] !== null && $insert->positionOf($candidate['column']) !== null) {
                     // The caller chose the key: it is the id (the sequence was not used, so its CURRVAL is an older one)
-                    return $insert->suppliedInt($candidate['column'], $params);
+                    return $insert->suppliedInt($candidate['column'], $params) ?? 0;
                 }
                 $generated ??= $candidate['sequence'];
             }
             if ($generated === null) {
-                return null;
+                return 0;
             }
 
             try {
@@ -480,7 +481,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             unset($this->keySequences[strtoupper($insert->table)]);
         }
 
-        return null;
+        return 0;
     }
 
     /**

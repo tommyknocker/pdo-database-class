@@ -54,7 +54,7 @@ final class InsertIdTests extends BasePostgreSQLTestCase
 
         $result = self::$db->find()->table('insert_id_text')->insert(['id' => 'abc', 'amount' => 1]);
 
-        $this->assertSame(1, $result, 'no generated key: the one-row placeholder, not the id of an insert into another table');
+        $this->assertNull($result, 'no generated key: null, not the id of an insert into another table');
     }
 
     public function testAnUpsertStillReturnsTheId(): void

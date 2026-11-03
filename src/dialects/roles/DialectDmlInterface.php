@@ -32,6 +32,7 @@ interface DialectDmlInterface
      * Extract inserted ID from statement result.
      * For dialects that use RETURNING clause, this should fetch the ID from the statement.
      * For other dialects, this should return null to fall back to lastInsertId().
+     * A dialect that can tell the row has no generated id returns 0 (the caller then reports no id).
      *
      * @param PDOStatement $stmt The executed statement
      * @param string $sql The SQL query that was executed

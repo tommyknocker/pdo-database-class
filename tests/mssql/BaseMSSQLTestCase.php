@@ -125,10 +125,10 @@ abstract class BaseMSSQLTestCase extends TestCase
         $connection->query('DELETE FROM orders');
         $connection->query('DELETE FROM archive_users');
         $connection->query('DELETE FROM users');
-        // Reset IDENTITY seed
-        $connection->query('DBCC CHECKIDENT(\'users\', RESEED, 0)');
-        $connection->query('DBCC CHECKIDENT(\'orders\', RESEED, 0)');
-        $connection->query('DBCC CHECKIDENT(\'archive_users\', RESEED, 0)');
+        // Reset IDENTITY seed. RESEED 0 on a table that never had a row makes its first id 0, so only reseed used tables
+        $connection->query('IF (SELECT last_value FROM sys.identity_columns WHERE object_id = OBJECT_ID(\'users\')) IS NOT NULL DBCC CHECKIDENT(\'users\', RESEED, 0)')?->closeCursor();
+        $connection->query('IF (SELECT last_value FROM sys.identity_columns WHERE object_id = OBJECT_ID(\'orders\')) IS NOT NULL DBCC CHECKIDENT(\'orders\', RESEED, 0)')?->closeCursor();
+        $connection->query('IF (SELECT last_value FROM sys.identity_columns WHERE object_id = OBJECT_ID(\'archive_users\')) IS NOT NULL DBCC CHECKIDENT(\'archive_users\', RESEED, 0)')?->closeCursor();
         parent::setUp();
     }
 

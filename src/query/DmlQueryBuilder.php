@@ -179,9 +179,11 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data The data to insert.
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The result of the insert operation.
+     * @return int|null The id of the new row: the generated key, or the key the insert supplied when it was numeric.
+     *                  Null when the row has no numeric id to report (a string or UUID key, a composite key, a table
+     *                  without a generated key); the insert itself succeeded, as a failure throws.
      */
-    public function insert(array $data, array $onDuplicate = []): int
+    public function insert(array $data, array $onDuplicate = []): ?int
     {
         $this->data = $data;
         if ($onDuplicate) {
@@ -208,7 +210,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
      * @param array<string>|null $columns Column names to insert into (null = use SELECT columns)
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The result of the insert operation.
+     * @return int The number of rows the statement affected.
      *
      * @example
      * // Basic INSERT ... SELECT
@@ -251,7 +253,8 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
         [$sql, $params] = $this->buildInsertSelectSql();
 
         try {
-            return $this->executionEngine->executeInsert($sql, $params);
+            // INSERT ... SELECT inserts many rows: report how many, not an id
+            return (int)$this->executionEngine->executeInsert($sql, $params, true);
         } catch (PDOException $e) {
             $this->enhanceExceptionWithContext($e, $sql);
 
@@ -279,7 +282,8 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
         [$sql, $params] = $this->buildInsertMultiSql();
 
         try {
-            return $this->executionEngine->executeInsert($sql, $params, true);
+            // A multi-row insert reports the number of rows, never null
+            return (int)$this->executionEngine->executeInsert($sql, $params, true);
         } catch (PDOException $e) {
             $this->enhanceExceptionWithContext($e, $sql);
 
@@ -293,9 +297,9 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data The data to replace.
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The result of the replace operation.
+     * @return int|null The id of the row, or null when it has no numeric id to report (see insert()).
      */
-    public function replace(array $data, array $onDuplicate = []): int
+    public function replace(array $data, array $onDuplicate = []): ?int
     {
         $this->data = $data;
 
@@ -329,7 +333,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
      * @param array<int, array<string, string|int|float|bool|null|RawValue>> $rows The rows to replace.
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The result of the replace operation.
+     * @return int The number of rows the statement affected.
      */
     public function replaceMulti(array $rows, array $onDuplicate = []): int
     {
@@ -370,7 +374,7 @@ class DmlQueryBuilder implements DmlQueryBuilderInterface, ConnectionAwareInterf
         );
 
         try {
-            return $this->executionEngine->executeInsert($sql, $this->parameterManager->getParamsFor($sql));
+            return (int)$this->executionEngine->executeInsert($sql, $this->parameterManager->getParamsFor($sql), true);
         } catch (PDOException $e) {
             $this->enhanceExceptionWithContext($e, $sql);
 

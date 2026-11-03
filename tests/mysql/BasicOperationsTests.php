@@ -41,7 +41,8 @@ final class BasicOperationsTests extends BaseMySQLTestCase
         ->option('LOW_PRIORITY')
         ->option('IGNORE')
         ->insert(['name' => 'Bob']);
-        $this->assertEquals(1, $id);
+        // Bob exists already, so IGNORE skipped the row: there is no new id
+        $this->assertNull($id);
 
         $lastQuery = $db->lastQuery ?? '';
         $this->assertStringStartsWith('INSERT LOW_PRIORITY IGNORE INTO `users`', $lastQuery);

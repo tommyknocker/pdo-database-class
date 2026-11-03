@@ -605,31 +605,28 @@ trait ActiveRecord
             unset($attributes[$pk[0]]);
         }
 
+        // A failed insert throws. The result is the generated key, or null when the key is not a number (UUID, composite).
         $result = $db->find()->table($tableName)->insert($attributes);
 
-        if ($result > 0) {
-            $insertId = null;
-
-            // Set primary key if auto-increment
-            if (count($pk) === 1 && (!isset($this->attributes[$pk[0]]) || ($this->attributes[$pk[0]] ?? null) === null)) {
-                $insertId = $result;
+        // Set primary key if auto-increment
+        if (count($pk) === 1 && (!isset($this->attributes[$pk[0]]) || ($this->attributes[$pk[0]] ?? null) === null)) {
+            $insertId = $result;
+            if ($result !== null) {
                 $this->attributes[$pk[0]] = $result;
-            } else {
-                $insertId = $this->attributes[$pk[0]] ?? null;
             }
-
-            $this->oldAttributes = $this->attributes;
-            $this->setIsNewRecord(false);
-            $this->reloadExpressionAttributes();
-
-            // Dispatch afterInsert event
-            $afterInsertEvent = new ModelAfterInsertEvent($this, $insertId);
-            $this->dispatchEvent($afterInsertEvent);
-
-            return true;
+        } else {
+            $insertId = $this->attributes[$pk[0]] ?? null;
         }
 
-        return false;
+        $this->oldAttributes = $this->attributes;
+        $this->setIsNewRecord(false);
+        $this->reloadExpressionAttributes();
+
+        // Dispatch afterInsert event
+        $afterInsertEvent = new ModelAfterInsertEvent($this, $insertId);
+        $this->dispatchEvent($afterInsertEvent);
+
+        return true;
     }
 
     /**

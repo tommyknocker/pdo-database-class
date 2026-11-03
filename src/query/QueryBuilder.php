@@ -1019,12 +1019,11 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data The data to insert.
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The id of the new row: the generated key, or the key the insert supplied when it was numeric. `1`
-     *             when the row has no numeric key to report (a string or UUID key, a composite key, a table without
-     *             a generated key), so `1` does not prove that the row has id 1; take the key from your own data then.
-     *             The number of affected rows for a multi-row insert.
+     * @return int|null The id of the new row: the generated key, or the key the insert supplied when it was numeric.
+     *                  Null when the row has no numeric id to report (a string or UUID key, a composite key, a table
+     *                  without a generated key); the insert itself succeeded, as a failure throws.
      */
-    public function insert(array $data, array $onDuplicate = []): int
+    public function insert(array $data, array $onDuplicate = []): ?int
     {
         $originalConnection = $this->switchToWriteConnection([$data]);
 
@@ -1069,7 +1068,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<string>|null $columns Column names to insert into (null = use SELECT columns)
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The result of the insert operation.
+     * @return int The number of rows the statement affected.
      */
     public function insertFrom(
         string|Closure|SelectQueryBuilderInterface|QueryBuilder $source,
@@ -1095,9 +1094,9 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<string, string|int|float|bool|null|RawValue|array<string, string|int|float>> $data The data to replace.
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The result of the replace operation.
+     * @return int|null The id of the row, or null when it has no numeric id to report (see insert()).
      */
-    public function replace(array $data, array $onDuplicate = []): int
+    public function replace(array $data, array $onDuplicate = []): ?int
     {
         $originalConnection = $this->switchToWriteConnection([$data]);
 
@@ -1118,7 +1117,7 @@ class QueryBuilder implements QueryBuilderInterface
      * @param array<int, array<string, string|int|float|bool|null|RawValue>> $rows The rows to replace.
      * @param array<string, string|int|float|bool|null|RawValue> $onDuplicate The columns to update on duplicate.
      *
-     * @return int The result of the replace operation.
+     * @return int The number of rows the statement affected.
      */
     public function replaceMulti(array $rows, array $onDuplicate = []): int
     {

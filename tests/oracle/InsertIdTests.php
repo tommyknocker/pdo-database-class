@@ -96,7 +96,7 @@ final class InsertIdTests extends BaseOracleTestCase
         $result = self::$db->find()->table('insert_id_uuid')->insert(['id' => 'a-1', 'amount' => 1]);
 
         $this->assertSame(1, (int)self::$db->rawQueryValue('SELECT COUNT(*) FROM "INSERT_ID_UUID"'));
-        $this->assertIsInt($result);
+        $this->assertNull($result, 'a string key has no numeric id to report');
     }
 
     private function dropHandMade(): void

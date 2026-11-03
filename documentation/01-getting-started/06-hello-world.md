@@ -41,7 +41,7 @@ $db->rawQuery('
 echo "=== INSERT ===\n";
 
 // Insert single user
-// What's happening: insert() returns the auto-increment ID (or last insert ID)
+// What's happening: insert() returns the auto-increment ID (null when the row has no numeric ID, e.g. a UUID key)
 // This works the same way across all databases (MySQL, PostgreSQL, SQLite, MSSQL)
 $userId = $db->find()->table('users')->insert([
     'name' => 'Alice',

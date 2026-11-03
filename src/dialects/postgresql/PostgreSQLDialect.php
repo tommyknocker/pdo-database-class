@@ -2420,9 +2420,9 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             return null;
         }
 
-        // What insert() reports when the row has no generated key. Returned here, not left to the caller's fallback,
-        // because the fallback would ask lastval() and get another table's id.
-        $noId = 1;
+        // The row has no generated key to report. Answering 0 here, rather than null, keeps the caller from asking
+        // lastval(), which would return another table's id.
+        $noId = 0;
 
         // The cache can be stale after DDL (a column made serial or identity later): on a failed currval() look the table
         // up again once

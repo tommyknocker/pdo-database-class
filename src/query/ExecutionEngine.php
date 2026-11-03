@@ -230,7 +230,7 @@ class ExecutionEngine implements ExecutionEngineInterface
      * @return int
      * @throws PDOException
      */
-    public function executeInsert(string $sql, array $params, bool $isMulty = false): int
+    public function executeInsert(string $sql, array $params, bool $isMulty = false): ?int
     {
         $stmt = $this->executeStatement($sql, $params);
 
@@ -239,21 +239,20 @@ class ExecutionEngine implements ExecutionEngineInterface
                 return $stmt->rowCount();
             }
 
-            // Let dialect extract ID from statement if it supports RETURNING or similar
+            // The dialect answers when it can read the id itself: a positive id, 0 for "this row has none", null to ask PDO
             $dialect = $this->connection->getDialect();
             $id = $dialect->extractInsertId($stmt, $sql, $params);
             if ($id !== null) {
-                return $id;
+                return $id > 0 ? $id : null;
             }
 
             try {
                 $id = (int)$this->connection->getLastInsertId();
 
-                return $id > 0 ? $id : 1;
+                return $id > 0 ? $id : null;
             } catch (PDOException) {
-                // PostgreSQL: lastval is not yet defined (no SERIAL column); Oracle: lastInsertId is not supported.
-                // The documented answer for a row without a numeric key is 1 (see insert()).
-                return 1;
+                // PostgreSQL: lastval is not yet defined (no SERIAL column); Oracle: lastInsertId is not supported
+                return null;
             }
         } finally {
             $stmt->closeCursor();

@@ -410,7 +410,8 @@ final class BasicOperationsTests extends BaseSqliteTestCase
         ['id' => 1, 'name' => 'Alice', 'age' => 26],     // replace existing
         ['id' => 3, 'name' => 'Charlie', 'age' => 35],   // insert new
         ]);
-        $this->assertEquals(3, $rowCount);
+        // Rows written, as SQLite counts them (MySQL also counts the deleted row of a replace, so it reports 3)
+        $this->assertEquals(2, $rowCount);
 
         $all = $db->find()
         ->from('users')

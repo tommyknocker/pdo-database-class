@@ -699,6 +699,19 @@ $id = $db->find()->table('users')->insert(['name' => 'Alice']);
 echo "Inserted ID: $id\n";
 ```
 
+`insert()` returns the generated numeric key, or the numeric key the insert supplied. It returns `null` when the row has no numeric id to report: a string or UUID key, a composite key, a table without a generated key, or an `INSERT IGNORE` that skipped the row. `null` does not mean the insert failed; a failure throws.
+
+```php
+$id = $db->find()->table('events')->insert(['id' => $uuid, 'type' => 'created']);   // null: the key is yours
+
+$userId = $db->find()->table('users')->insert(['name' => 'Alice']);
+$db->find()->table('profiles')->insert(['user_id' => $userId]);       // fine: Alice has a numeric id
+```
+
+Take the key from your own data when you assign it yourself. SQLite reports the row's `rowid`, so a table with a string primary key returns that number, and a `WITHOUT ROWID` table returns the rowid of an earlier insert; do not rely on the result there.
+
+`insertFrom()`, `insertMulti()` and `replaceMulti()` return the number of rows the statement affected, counted as the database counts them (MySQL counts a replaced row twice).
+
 ### UPDATE/DELETE Returns Count
 
 ```php
