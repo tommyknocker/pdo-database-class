@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\connection\sharding\strategies;
 
 use RuntimeException;
+use tommyknocker\pdodb\connection\sharding\DecimalInteger;
 use tommyknocker\pdodb\connection\sharding\ShardStrategyInterface;
 
 /**
@@ -44,7 +45,7 @@ class RangeShardStrategy implements ShardStrategyInterface
             throw new RuntimeException('Range strategy requires numeric value, got: ' . gettype($shardKeyValue));
         }
 
-        $value = (int)$shardKeyValue;
+        $value = DecimalInteger::normalize($shardKeyValue);
 
         foreach ($this->ranges as $shardName => $range) {
             if (count($range) !== 2) {
@@ -53,7 +54,7 @@ class RangeShardStrategy implements ShardStrategyInterface
 
             [$min, $max] = $range;
 
-            if ($value >= $min && $value <= $max) {
+            if (DecimalInteger::compare($value, (string)$min) >= 0 && DecimalInteger::compare($value, (string)$max) <= 0) {
                 return $shardName;
             }
         }
@@ -75,8 +76,8 @@ class RangeShardStrategy implements ShardStrategyInterface
         if (is_array($value)) {
             // For BETWEEN: [min, max]
             if (count($value) === 2 && isset($value[0]) && isset($value[1])) {
-                $min = is_numeric($value[0]) ? (int)$value[0] : null;
-                $max = is_numeric($value[1]) ? (int)$value[1] : null;
+                $min = is_numeric($value[0]) ? DecimalInteger::normalize($value[0]) : null;
+                $max = is_numeric($value[1]) ? DecimalInteger::normalize($value[1]) : null;
 
                 if ($min !== null && $max !== null) {
                     foreach ($this->ranges as $shardName => $range) {
@@ -87,7 +88,7 @@ class RangeShardStrategy implements ShardStrategyInterface
                         [$rangeMin, $rangeMax] = $range;
 
                         // Check if ranges overlap
-                        if (!($max < $rangeMin || $min > $rangeMax)) {
+                        if (!(DecimalInteger::compare($max, (string)$rangeMin) < 0 || DecimalInteger::compare($min, (string)$rangeMax) > 0)) {
                             $shards[] = $shardName;
                         }
                     }

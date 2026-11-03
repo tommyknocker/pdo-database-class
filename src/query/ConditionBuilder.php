@@ -1242,8 +1242,8 @@ class ConditionBuilder implements ConditionBuilderInterface, ConnectionAwareInte
                             return $params[$paramName];
                         }
                     } elseif (preg_match('/^(\d+)$/', $valuePart)) {
-                        // Numeric literal
-                        return (int)$valuePart;
+                        // Numeric literal; one beyond PHP_INT_MAX stays a string so the shard is chosen on the exact value
+                        return (string)(int)$valuePart === $valuePart ? (int)$valuePart : $valuePart;
                     } elseif (preg_match("/^'([^']*)'$/", $valuePart, $strMatches)) {
                         // String literal
                         return $strMatches[1];

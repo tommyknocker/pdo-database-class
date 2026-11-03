@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\connection\sharding\strategies;
 
 use InvalidArgumentException;
 use RuntimeException;
+use tommyknocker\pdodb\connection\sharding\DecimalInteger;
 use tommyknocker\pdodb\connection\sharding\ShardStrategyInterface;
 
 /**
@@ -45,8 +46,7 @@ class ModuloShardStrategy implements ShardStrategyInterface
             throw new RuntimeException('Modulo strategy requires numeric value, got: ' . gettype($shardKeyValue));
         }
 
-        $value = (int)$shardKeyValue;
-        $shardIndex = $value % $this->shardCount;
+        $shardIndex = DecimalInteger::modulo(DecimalInteger::normalize($shardKeyValue), $this->shardCount);
         $shardNumber = $shardIndex + 1;
 
         return "shard{$shardNumber}";
