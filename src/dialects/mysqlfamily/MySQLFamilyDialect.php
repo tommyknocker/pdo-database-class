@@ -43,7 +43,10 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
      * {@inheritDoc}
      *
      * The connection reports only AUTO_INCREMENT values. The id of the written row is therefore:
-     *  - nothing, when a plain insert wrote no row (`INSERT IGNORE` skipped it), and for an upsert that updated a row;
+     *  - for `ON DUPLICATE KEY UPDATE`: the connection's id (the row inserted or updated), nothing for a key that is not
+     *    AUTO_INCREMENT; the key the statement carries is not used, since a conflict on another unique column updates
+     *    another row;
+     *  - nothing, when a plain insert wrote no row (`INSERT IGNORE` skipped it);
      *  - the key the statement supplied for the table's single-column primary key, of any type (a UUID, a text key);
      *  - otherwise the connection's value (read first, before any other query), when that key is AUTO_INCREMENT;
      *  - nothing for a key the database fills in from a default, which MySQL cannot report.
@@ -60,15 +63,17 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
         }
         // The connection's id belongs to the last statement: read it before the catalog query below replaces it
         $connectionId = $this->pdo->lastInsertId();
-        $affected = $stmt->rowCount();
         if (preg_match('/\bON\s+DUPLICATE\s+KEY\b/i', $insert->tail) === 1) {
-            // An upsert reports 1 for an inserted row, 2 for an updated one and 0 for an update that changed nothing. When
-            // the row was updated, neither the key the statement carried nor the connection's id (still the previous
-            // insert's) names it, unless the update says so with LAST_INSERT_ID(<key>).
-            if ($affected !== 1) {
-                return preg_match('/\bLAST_INSERT_ID\s*\(/i', $insert->tail) === 1 ? (InsertId::from($connectionId) ?? 0) : 0;
-            }
-        } elseif ($affected === 0) {
+            // An upsert may have updated a row found through another unique column, so the key it carried can belong to
+            // another row, and rowCount() cannot tell an insert from an unchanged conflict (1 for both under
+            // MYSQL_ATTR_FOUND_ROWS). The connection can: it names the row inserted or updated, and nothing when the
+            // update changed no value (unless the update says LAST_INSERT_ID(<key>)). A key that is not AUTO_INCREMENT
+            // is not reported to the connection, so there is no answer for it.
+            $primaryKey = $this->primaryKeyOf($insert, true);
+
+            return $primaryKey['key'] !== null && !$primaryKey['autoIncrement'] ? 0 : (InsertId::from($connectionId) ?? 0);
+        }
+        if ($stmt->rowCount() === 0) {
             return 0; // INSERT IGNORE skipped the row
         }
 

@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
+use PDO\Mysql;
+use PHPUnit\Framework\Attributes\DataProvider;
+use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\PdoDb;
+
 /**
  * insert() reports the generated key, and null when the row has no numeric id.
  */
@@ -119,5 +124,57 @@ final class InsertIdTests extends BaseMySQLTestCase
     public function testAnUpsertThatInsertsReturnsItsKey(): void
     {
         $this->assertSame(7, self::$db->find()->table('insert_id_auto')->onDuplicate(['name'])->insert(['id' => 7, 'name' => 'fresh']));
+    }
+
+    /**
+     * @return array<string, array{bool}>
+     */
+    public static function foundRowsModes(): array
+    {
+        return ['affected rows (default)' => [false], 'found rows' => [true]];
+    }
+
+    /**
+     * MYSQL_ATTR_FOUND_ROWS makes rowCount() 1 for an unchanged conflict too, so the answer must not depend on it.
+     */
+    #[DataProvider('foundRowsModes')]
+    public function testAnUpsertNamesTheRowItInsertedOrUpdatedWhateverRowCountSays(bool $foundRows): void
+    {
+        $db = new PdoDb('mysql', [
+            'host' => self::DB_HOST,
+            'port' => self::DB_PORT,
+            'username' => self::DB_USER,
+            'password' => self::DB_PASSWORD,
+            'dbname' => self::DB_NAME,
+            'charset' => self::DB_CHARSET,
+        ], [Mysql::ATTR_FOUND_ROWS => $foundRows]);
+        $db->rawQuery('DROP TABLE IF EXISTS insert_id_upsert');
+        $db->rawQuery('CREATE TABLE insert_id_upsert (id INT AUTO_INCREMENT PRIMARY KEY, email VARCHAR(30) UNIQUE, note VARCHAR(20))');
+
+        try {
+            $db->find()->table('insert_id_upsert')->insert(['id' => 1, 'email' => 'a', 'note' => 'old']);
+            $db->find()->table('insert_id_upsert')->insert(['id' => 42, 'email' => 'z', 'note' => 'zz']); // the previous insert
+            $upsert = static fn (array $row, array $update = ['note']) => $db->find()->table('insert_id_upsert')->onDuplicate($update)->insert($row);
+
+            $changed = $upsert(['id' => 999, 'email' => 'a', 'note' => 'new']);      // conflict on email: row 1 is updated
+            $unchanged = $upsert(['id' => 998, 'email' => 'a', 'note' => 'new']);    // conflict, nothing changes
+            $fresh = $upsert(['id' => 7, 'email' => 'q', 'note' => 'q']);            // a new row
+            $trick = $upsert(['id' => 997, 'email' => 'a', 'note' => 'new'], ['note' => Db::raw("'new'"), 'id' => Db::raw('LAST_INSERT_ID(id)')]);
+        } finally {
+            $db->rawQuery('DROP TABLE IF EXISTS insert_id_upsert');
+        }
+
+        $this->assertSame(1, $changed, 'the row that was updated, not the key the statement carried (999)');
+        $this->assertNull($unchanged, 'nothing was written, and rowCount() is 1 under FOUND_ROWS: it must not be read as an insert');
+        $this->assertSame(7, $fresh);
+        $this->assertSame(1, $trick, 'LAST_INSERT_ID(id) makes the connection name the row even when nothing changed');
+    }
+
+    public function testAnUpsertOfAKeyThatIsNotAutoIncrementHasNoAnswer(): void
+    {
+        self::$db->find()->table('insert_id_text')->insert(['id' => 'abc', 'amount' => 1]);
+
+        // The key carried may or may not be the row a conflict on another column updates: null rather than a guess
+        $this->assertNull(self::$db->find()->table('insert_id_text')->onDuplicate(['amount'])->insert(['id' => 'abc', 'amount' => 2]));
     }
 }
