@@ -31,11 +31,14 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
 - [ ] Migrations on MySQL, MariaDB and Oracle no longer run in a transaction; `safeUp()` / `safeDown()` are replaced by
       `Migration::transactional()`; `--pretend` is gone (use `--dry-run`).
 - [ ] `RetryableConnection` retries only reads (`retry.retry_writes` to change).
-- [ ] `insert()` and `replace()` return `null` when the row has no numeric id (a string or UUID key, a table without a
-      generated key, a skipped `INSERT IGNORE`). 2.10 to 3.0.0 returned `1` there, which looked like a real id; code
-      that passes the result on (`$parent = insert(...)`) must take the key from its own data for such tables.
-      The type is `int|string|null`: a string only for an id beyond `PHP_INT_MAX`. `insertFrom()` and `replaceMulti()`
-      return the number of affected rows.
+- [ ] `insert()` and `replace()` return the key of the row the statement wrote, or `null` when there is none to report
+      (a skipped `INSERT IGNORE`, a composite key, a table without a key, and on MySQL and Oracle a key the database fills
+      in from a default). 2.10 to 3.0.0 returned `1` there, which looked like a real id; code that passes the result on
+      (`$parent = insert(...)`) must take the key from its own data in such cases. PostgreSQL, SQLite, MariaDB 10.5+ and
+      SQL Server read the key with `RETURNING` / `OUTPUT`, so it can also be a string (a text or UUID key). The type is
+      `int|string|null`: a string for a non-numeric key or an id beyond `PHP_INT_MAX`. `insertFrom()` and
+      `replaceMulti()` return the number of affected rows. A custom dialect can opt in to `RETURNING` with
+      `DialectInsertReturningInterface`.
 - [ ] MySQL `LOCAL INFILE` is off unless you pass `PDO\Mysql::ATTR_LOCAL_INFILE`.
 - [ ] CLI: unknown options exit with 2, failures print `Error: ...` and exit with 1 (`PDODB_DEBUG=1` for traces).
 - [ ] AI settings: one selected provider (`PDODB_AI_API_KEY`, `PDODB_AI_MODEL`).

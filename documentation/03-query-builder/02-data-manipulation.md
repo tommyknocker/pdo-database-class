@@ -699,16 +699,22 @@ $id = $db->find()->table('users')->insert(['name' => 'Alice']);
 echo "Inserted ID: $id\n";
 ```
 
-`insert()` returns the generated numeric key, or the numeric key the insert supplied, as an `int`. An id that does not fit a PHP `int` (a `BIGINT UNSIGNED` above 9223372036854775807) comes back as a numeric `string` instead of being clamped. It returns `null` when the row has no numeric id to report: a string or UUID key, a composite key, a table without a generated key, or an `INSERT IGNORE` that skipped the row. `null` does not mean the insert failed; a failure throws.
+`insert()` returns the key of the row this statement wrote: the generated key, or the key the insert supplied. It is an `int`, or a `string` when the key does not fit an `int` (a `BIGINT UNSIGNED` above 9223372036854775807) or is not a number. It returns `null` when the statement wrote no row or the row has no single key to report. `null` does not mean the insert failed; a failure throws.
 
 ```php
-$id = $db->find()->table('events')->insert(['id' => $uuid, 'type' => 'created']);   // null: the key is yours
-
-$userId = $db->find()->table('users')->insert(['name' => 'Alice']);
-$db->find()->table('profiles')->insert(['user_id' => $userId]);       // fine: Alice has a numeric id
+$id = $db->find()->table('users')->insert(['name' => 'Alice']);              // 1
+$db->find()->table('profiles')->insert(['user_id' => $id]);
 ```
 
-Take the key from your own data when you assign it yourself. SQLite reports the row's `rowid`, so a table with a string primary key returns that number, and a `WITHOUT ROWID` table returns the rowid of an earlier insert; do not rely on the result there.
+What each database can tell:
+
+| | Reported |
+|---|---|
+| PostgreSQL, SQLite, MariaDB 10.5+ | The single-column primary key of the written row, of any type, read from the statement itself (`RETURNING`): a generated number, a key you supplied, or a UUID the database generated. An upsert (`onDuplicate()`) names the row it inserted or updated; a skipped insert (`ON CONFLICT DO NOTHING`, `INSERT IGNORE`) and a composite key return `null`. SQLite reports the `rowid` of a table without a primary key. MariaDB asks for `RETURNING` only when the connection cannot answer: a key that is not `AUTO_INCREMENT`, or an upsert. |
+| SQL Server | The same, with `OUTPUT INSERTED.<key>`, for a primary key that is not an `IDENTITY` column (a `NEWID()` GUID, a text key). A table with an enabled trigger cannot use a plain `OUTPUT` (error 334), so a non-identity key there is `null` and the insert still succeeds. |
+| MySQL, Oracle, MariaDB before 10.5 | The generated number (`AUTO_INCREMENT`, a sequence, an identity column), or the key you supplied for the table's single-column primary key, of any type. A key the database fills in from a default (`DEFAULT (UUID())`, `SYS_GUID()`) cannot be reported: the connection tells only generated numbers. |
+
+In every case a composite primary key, a skipped insert and a table without a key give `null`, and a failure throws.
 
 `insertFrom()`, `insertMulti()` and `replaceMulti()` return the number of rows the statement affected, counted as the database counts them (MySQL counts a replaced row twice).
 
