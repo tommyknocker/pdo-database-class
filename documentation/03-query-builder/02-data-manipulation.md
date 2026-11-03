@@ -712,9 +712,9 @@ What each database can tell:
 |---|---|
 | PostgreSQL, SQLite, MariaDB 10.5+ | The single-column primary key of the written row, of any type, read from the statement itself (`RETURNING`): a generated number, a key you supplied, or a UUID the database generated. An upsert (`onDuplicate()`) names the row it inserted or updated; a skipped insert (`ON CONFLICT DO NOTHING`, `INSERT IGNORE`) and a composite key return `null`. SQLite reports the `rowid` of a table without a primary key. MariaDB asks for `RETURNING` only when the connection cannot answer: a key that is not `AUTO_INCREMENT`, or an upsert. |
 | SQL Server | The same, with `OUTPUT INSERTED.<key>`, for a primary key that is not an `IDENTITY` column (a `NEWID()` GUID, a text key). A table with an enabled trigger cannot use a plain `OUTPUT` (error 334), so a non-identity key there is `null` and the insert still succeeds. |
-| MySQL, Oracle, MariaDB before 10.5 | The generated number (`AUTO_INCREMENT`, a sequence, an identity column), or the key you supplied for the table's single-column primary key, of any type. A key the database fills in from a default (`DEFAULT (UUID())`, `SYS_GUID()`) cannot be reported: the connection tells only generated numbers. |
+| MySQL, Oracle, MariaDB before 10.5 | The generated number (`AUTO_INCREMENT`, a sequence, an identity column), or the key you supplied for the table's single-column primary key, of any type. A key the database fills in from a default (`DEFAULT (UUID())`, `SYS_GUID()`) cannot be reported: the connection tells only generated numbers. On MySQL an upsert (`ON DUPLICATE KEY UPDATE`) that updated an existing row returns `null`: the connection still holds the previous insert's id and the key in the statement may belong to another row, unless the update says `id = LAST_INSERT_ID(id)`. |
 
-In every case a composite primary key, a skipped insert and a table without a key give `null`, and a failure throws.
+In every case a composite primary key and a skipped insert give `null`, and a failure throws. A table without a primary key gives `null` too, except where the database has a handle for the row anyway: the `rowid` on SQLite and a `SERIAL` column on PostgreSQL.
 
 `insertFrom()`, `insertMulti()` and `replaceMulti()` return the number of rows the statement affected, counted as the database counts them (MySQL counts a replaced row twice).
 
