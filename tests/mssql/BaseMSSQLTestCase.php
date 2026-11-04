@@ -36,6 +36,34 @@ abstract class BaseMSSQLTestCase extends TestCase
         return $port === false || $port === '' ? self::DB_PORT : (int)$port;
     }
 
+    /**
+     * Connection settings of the test database, also used by the integration tests. PDODB_USERNAME and PDODB_PASSWORD
+     * replace the defaults (CI connects as sa).
+     *
+     * @return array<string, mixed>
+     */
+    public static function connectionConfig(): array
+    {
+        $username = getenv('PDODB_USERNAME');
+        if ($username === false || $username === '') {
+            $username = self::DB_USER;
+        }
+        $password = getenv('PDODB_PASSWORD');
+        if ($password === false || $password === '') {
+            $password = self::DB_PASSWORD;
+        }
+
+        return [
+            'host' => self::host(),
+            'port' => self::port(),
+            'username' => $username,
+            'password' => $password,
+            'dbname' => self::DB_NAME,
+            'trust_server_certificate' => true,
+            'encrypt' => true,
+        ];
+    }
+
     public static function setUpBeforeClass(): void
     {
         /*
@@ -49,28 +77,7 @@ abstract class BaseMSSQLTestCase extends TestCase
          * Or use SA user for CI/testing:
          * PDODB_USERNAME=sa PDODB_PASSWORD=Test123!@#
          */
-        // Use environment variables if set (for CI), otherwise use constants
-        $username = getenv('PDODB_USERNAME');
-        if ($username === false || $username === '') {
-            $username = self::DB_USER;
-        }
-        $password = getenv('PDODB_PASSWORD');
-        if ($password === false || $password === '') {
-            $password = self::DB_PASSWORD;
-        }
-
-        self::$db = new PdoDb(
-            'sqlsrv',
-            [
-                'host' => self::host(),
-                'port' => self::port(),
-                'username' => $username,
-                'password' => $password,
-                'dbname' => self::DB_NAME,
-                'trust_server_certificate' => true,
-                'encrypt' => true,
-            ]
-        );
+        self::$db = new PdoDb('sqlsrv', self::connectionConfig());
 
         $connection = self::$db->connection;
         assert($connection !== null);

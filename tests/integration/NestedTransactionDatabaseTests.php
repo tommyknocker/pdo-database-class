@@ -6,7 +6,6 @@ namespace tommyknocker\pdodb\tests\integration;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use RuntimeException;
 use tommyknocker\pdodb\orm\Model;
 use tommyknocker\pdodb\PdoDb;
@@ -29,30 +28,13 @@ final class NestedTransactionDatabaseTests extends TestCase
 {
     public static function databases(): array
     {
-        return array_map(static fn ($name) => [$name], ['sqlite', 'mysql', 'mariadb', 'postgresql', 'mssql', 'oracle']);
-    }
-
-    private function database(string $name): PdoDb
-    {
-        if ($name === 'sqlite') {
-            return new PdoDb('sqlite', ['path' => ':memory:']);
-        }
-        $classes = ['mysql' => 'MySQL', 'mariadb' => 'MariaDB', 'postgresql' => 'PostgreSQL', 'mssql' => 'MSSQL', 'oracle' => 'Oracle'];
-        $base = new ReflectionClass('tommyknocker\\pdodb\\tests\\' . $name . '\\Base' . $classes[$name] . 'TestCase');
-        $config = ['enable_regexp' => false];
-        foreach (['DB_HOST' => 'host', 'DB_PORT' => 'port', 'DB_USER' => 'username', 'DB_PASSWORD' => 'password', 'DB_NAME' => 'dbname', 'DB_CHARSET' => 'charset', 'DB_SERVICE_NAME' => 'service_name'] as $constant => $key) {
-            if ($base->hasConstant($constant)) {
-                $config[$key] = $base->getConstant($constant);
-            }
-        }
-        $config += ['encrypt' => true, 'trust_server_certificate' => true];
-        return new PdoDb(['postgresql' => 'pgsql', 'mssql' => 'sqlsrv', 'oracle' => 'oci'][$name] ?? $name, $config);
+        return IntegrationDatabases::provider();
     }
 
     #[DataProvider('databases')]
     public function testScopesIsolateOrConditionsOnWrites(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         $table = 'NS_' . strtoupper(bin2hex(random_bytes(5)));
         $quoted = $db->connection->getDialect()->quoteIdentifier($table);
         $db->rawQuery("CREATE TABLE {$quoted} (id INTEGER PRIMARY KEY, tenant_id INTEGER)");
@@ -74,7 +56,7 @@ final class NestedTransactionDatabaseTests extends TestCase
     #[DataProvider('databases')]
     public function testNestedTransactionsRespectOuterBoundary(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         $table = 'NT_' . strtoupper(bin2hex(random_bytes(5)));
         $quoted = $db->connection->getDialect()->quoteIdentifier($table);
         $db->rawQuery("CREATE TABLE {$quoted} (id INTEGER PRIMARY KEY)");

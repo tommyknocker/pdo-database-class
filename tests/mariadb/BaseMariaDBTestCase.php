@@ -19,6 +19,23 @@ abstract class BaseMariaDBTestCase extends TestCase
     protected const int DB_PORT = 3305;
     protected const string DB_CHARSET = 'utf8mb4';
 
+    /**
+     * Connection settings of the test database, also used by the integration tests.
+     *
+     * @return array<string, mixed>
+     */
+    public static function connectionConfig(): array
+    {
+        return [
+            'host' => self::DB_HOST,
+            'port' => self::DB_PORT,
+            'username' => self::DB_USER,
+            'password' => self::DB_PASSWORD,
+            'dbname' => self::DB_NAME,
+            'charset' => self::DB_CHARSET,
+        ];
+    }
+
     public static function setUpBeforeClass(): void
     {
         /*
@@ -29,14 +46,7 @@ abstract class BaseMariaDBTestCase extends TestCase
          */
         self::$db = new PdoDb(
             'mariadb',
-            [
-                'host' => self::DB_HOST,
-                'port' => self::DB_PORT,
-                'username' => self::DB_USER,
-                'password' => self::DB_PASSWORD,
-                'dbname' => self::DB_NAME,
-                'charset' => self::DB_CHARSET,
-            ],
+            self::connectionConfig(),
             // LOAD DATA LOCAL INFILE is opt-in; the file-load tests need it.
             [Mysql::ATTR_LOCAL_INFILE => true]
         );

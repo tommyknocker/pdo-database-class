@@ -6,9 +6,7 @@ namespace tommyknocker\pdodb\tests\integration;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use tommyknocker\pdodb\orm\Model;
-use tommyknocker\pdodb\PdoDb;
 
 final class ConnectionDatabaseOwner extends Model
 {
@@ -35,31 +33,14 @@ final class ModelConnectionDatabaseTests extends TestCase
 {
     public static function databases(): array
     {
-        return array_map(static fn ($name) => [$name], ['sqlite', 'mysql', 'mariadb', 'postgresql', 'mssql', 'oracle']);
-    }
-
-    private function database(string $name): PdoDb
-    {
-        if ($name === 'sqlite') {
-            return new PdoDb('sqlite', ['path' => ':memory:']);
-        }
-        $classes = ['mysql' => 'MySQL', 'mariadb' => 'MariaDB', 'postgresql' => 'PostgreSQL', 'mssql' => 'MSSQL', 'oracle' => 'Oracle'];
-        $base = new ReflectionClass('tommyknocker\\pdodb\\tests\\' . $name . '\\Base' . $classes[$name] . 'TestCase');
-        $config = ['enable_regexp' => false];
-        foreach (['DB_HOST' => 'host', 'DB_PORT' => 'port', 'DB_USER' => 'username', 'DB_PASSWORD' => 'password', 'DB_NAME' => 'dbname', 'DB_CHARSET' => 'charset', 'DB_SERVICE_NAME' => 'service_name'] as $constant => $key) {
-            if ($base->hasConstant($constant)) {
-                $config[$key] = $base->getConstant($constant);
-            }
-        }
-        $config += ['encrypt' => true, 'trust_server_certificate' => true];
-        return new PdoDb(['postgresql' => 'pgsql', 'mssql' => 'sqlsrv', 'oracle' => 'oci'][$name] ?? $name, $config);
+        return IntegrationDatabases::provider();
     }
 
     #[DataProvider('databases')]
     public function testExplicitConnectionPropagatesToRelatedModels(string $name): void
     {
-        $default = $this->database($name);
-        $explicit = $name === 'sqlite' ? $default : $this->database($name);
+        $default = IntegrationDatabases::connect($name);
+        $explicit = $name === 'sqlite' ? $default : IntegrationDatabases::connect($name);
         $suffix = strtoupper(bin2hex(random_bytes(5)));
         $owner = 'CO_' . $suffix;
         $item = 'CI_' . $suffix;

@@ -18,6 +18,25 @@ abstract class BaseOracleTestCase extends TestCase
     protected const DB_PORT = 1521;
     protected const DB_CHARSET = 'AL32UTF8';
 
+    /**
+     * Connection settings of the test database, also used by the integration tests. PDODB_HOST, PDODB_PORT,
+     * PDODB_USERNAME, PDODB_PASSWORD, PDODB_SERVICE_NAME (or PDODB_SID) and PDODB_CHARSET replace the defaults.
+     * Oracle XE 21c uses XEPDB1 as the PDB service name.
+     *
+     * @return array<string, mixed>
+     */
+    public static function connectionConfig(): array
+    {
+        return [
+            'host' => getenv('PDODB_HOST') ?: self::DB_HOST,
+            'port' => (int)(getenv('PDODB_PORT') ?: (string)self::DB_PORT),
+            'username' => getenv('PDODB_USERNAME') ?: self::DB_USER,
+            'password' => getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD,
+            'service_name' => getenv('PDODB_SERVICE_NAME') ?: getenv('PDODB_SID') ?: self::DB_SERVICE_NAME,
+            'charset' => getenv('PDODB_CHARSET') ?: self::DB_CHARSET,
+        ];
+    }
+
     public static function setUpBeforeClass(): void
     {
         /*
@@ -26,26 +45,7 @@ abstract class BaseOracleTestCase extends TestCase
          * GRANT CONNECT, RESOURCE TO testuser;
          * ALTER USER testuser QUOTA UNLIMITED ON USERS;
          */
-        // Use environment variables if available, otherwise use defaults
-        // Oracle XE 21c uses XEPDB1 as PDB service name
-        $host = getenv('PDODB_HOST') ?: self::DB_HOST;
-        $port = (int)(getenv('PDODB_PORT') ?: (string)self::DB_PORT);
-        $user = getenv('PDODB_USERNAME') ?: self::DB_USER;
-        $password = getenv('PDODB_PASSWORD') ?: self::DB_PASSWORD;
-        $serviceName = getenv('PDODB_SERVICE_NAME') ?: getenv('PDODB_SID') ?: self::DB_SERVICE_NAME;
-        $charset = getenv('PDODB_CHARSET') ?: self::DB_CHARSET;
-
-        self::$db = new PdoDb(
-            'oci',
-            [
-                'host' => $host,
-                'port' => $port,
-                'username' => $user,
-                'password' => $password,
-                'service_name' => $serviceName,
-                'charset' => $charset,
-            ]
-        );
+        self::$db = new PdoDb('oci', self::connectionConfig());
 
         $connection = self::$db->connection;
 

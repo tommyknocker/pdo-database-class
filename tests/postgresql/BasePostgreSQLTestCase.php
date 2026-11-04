@@ -16,6 +16,22 @@ abstract class BasePostgreSQLTestCase extends TestCase
     protected const string DB_PASSWORD = 'testpass';
     protected const int DB_PORT = 5433;
 
+    /**
+     * Connection settings of the test database, also used by the integration tests.
+     *
+     * @return array<string, mixed>
+     */
+    public static function connectionConfig(): array
+    {
+        return [
+            'host' => self::DB_HOST,
+            'port' => self::DB_PORT,
+            'username' => self::DB_USER,
+            'password' => self::DB_PASSWORD,
+            'dbname' => self::DB_NAME,
+        ];
+    }
+
     public static function setUpBeforeClass(): void
     {
         /*
@@ -28,16 +44,7 @@ abstract class BasePostgreSQLTestCase extends TestCase
          * GRANT pg_write_server_files TO testuser;
          * \q
          */
-        self::$db = new PdoDb(
-            'pgsql',
-            [
-                'host' => self::DB_HOST,
-                'port' => self::DB_PORT,
-                'username' => self::DB_USER,
-                'password' => self::DB_PASSWORD,
-                'dbname' => self::DB_NAME,
-            ]
-        );
+        self::$db = new PdoDb('pgsql', self::connectionConfig());
 
         self::$db->rawQuery('DROP TABLE IF EXISTS archive_users');
         self::$db->rawQuery('DROP TABLE IF EXISTS orders');

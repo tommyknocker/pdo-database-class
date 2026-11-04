@@ -7,12 +7,10 @@ namespace tommyknocker\pdodb\tests\integration;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use tommyknocker\pdodb\cli\TableManager;
 use tommyknocker\pdodb\orm\behaviors\SoftDeleteBehavior;
 use tommyknocker\pdodb\orm\behaviors\TimestampBehavior;
 use tommyknocker\pdodb\orm\Model;
-use tommyknocker\pdodb\PdoDb;
 
 enum ApiDatabaseState: string
 {
@@ -61,29 +59,12 @@ final class ActiveRecordApiDatabaseTests extends TestCase
 {
     public static function databases(): array
     {
-        return array_map(static fn ($name) => [$name], ['sqlite', 'mysql', 'mariadb', 'postgresql', 'mssql', 'oracle']);
-    }
-
-    private function database(string $name): PdoDb
-    {
-        if ($name === 'sqlite') {
-            return new PdoDb('sqlite', ['path' => ':memory:']);
-        }
-        $classes = ['mysql' => 'MySQL', 'mariadb' => 'MariaDB', 'postgresql' => 'PostgreSQL', 'mssql' => 'MSSQL', 'oracle' => 'Oracle'];
-        $base = new ReflectionClass('tommyknocker\\pdodb\\tests\\' . $name . '\\Base' . $classes[$name] . 'TestCase');
-        $config = ['enable_regexp' => false];
-        foreach (['DB_HOST' => 'host', 'DB_PORT' => 'port', 'DB_USER' => 'username', 'DB_PASSWORD' => 'password', 'DB_NAME' => 'dbname', 'DB_CHARSET' => 'charset', 'DB_SERVICE_NAME' => 'service_name'] as $constant => $key) {
-            if ($base->hasConstant($constant)) {
-                $config[$key] = $base->getConstant($constant);
-            }
-        }
-        $config += ['encrypt' => true, 'trust_server_certificate' => true];
-        return new PdoDb(['postgresql' => 'pgsql', 'mssql' => 'sqlsrv', 'oracle' => 'oci'][$name] ?? $name, $config);
+        return IntegrationDatabases::provider();
     }
 
     public function testOracleRejectsLossyTimestampSessionFormat(): void
     {
-        $db = $this->database('oracle');
+        $db = IntegrationDatabases::connect('oracle');
         $db->rawQuery("ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS'");
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('preserve microseconds');
@@ -93,7 +74,7 @@ final class ActiveRecordApiDatabaseTests extends TestCase
     #[DataProvider('databases')]
     public function testTimestampBehaviorsUseDatabaseClockByDefault(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         if ($name === 'oracle') {
             $db->rawQuery("ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS'");
         }
@@ -151,7 +132,7 @@ final class ActiveRecordApiDatabaseTests extends TestCase
     #[DataProvider('databases')]
     public function testStringLiteralsRoundTripHostileValues(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         $dialect = $db->connection->getDialect();
         $from = $name === 'oracle' ? ' FROM DUAL' : '';
         $values = ["it's", '\\', "\\' OR 1=1 --", "a\\\\'b", "'; DROP TABLE users; --", '100%_done', 'plain'];
@@ -165,7 +146,7 @@ final class ActiveRecordApiDatabaseTests extends TestCase
     #[DataProvider('databases')]
     public function testHostileJsonKeysAndTableNamesStayInsideTheirLiterals(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         $dialect = $db->connection->getDialect();
         $table = 'aj_' . bin2hex(random_bytes(5));
         $quoted = $dialect->quoteIdentifier($table);
@@ -194,7 +175,7 @@ final class ActiveRecordApiDatabaseTests extends TestCase
     #[DataProvider('databases')]
     public function testNativeTimestampRoundTrip(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         if ($name === 'oracle') {
             $db->rawQuery("ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS.FF6'");
         }
@@ -226,7 +207,7 @@ final class ActiveRecordApiDatabaseTests extends TestCase
     #[DataProvider('databases')]
     public function testCastsPersistAndReadAcrossDrivers(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         if ($name === 'oracle') {
             $db->rawQuery("ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS.FF6'");
         }

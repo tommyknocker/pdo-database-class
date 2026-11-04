@@ -9,42 +9,22 @@ use PDO;
 use PDOException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use RuntimeException;
 use tommyknocker\pdodb\ai\mcp\McpConfig;
 use tommyknocker\pdodb\ai\mcp\McpExecutionGuard;
 use tommyknocker\pdodb\ai\mcp\McpServer;
-use tommyknocker\pdodb\PdoDb;
 
 /** Explicit local integration suite; excluded from normal offline/shared tests. */
 final class McpDatabasePolicyTests extends TestCase
 {
     public static function databases(): array
     {
-        return array_map(static fn ($name) => [$name], ['sqlite', 'mysql', 'mariadb', 'postgresql', 'mssql', 'oracle']);
+        return IntegrationDatabases::provider();
     }
 
     public static function timeoutDatabases(): array
     {
-        return [['postgresql'], ['mariadb']];
-    }
-
-    private function database(string $name): PdoDb
-    {
-        if ($name === 'sqlite') {
-            return new PdoDb('sqlite', ['path' => ':memory:']);
-        }
-        $classes = ['mysql' => 'MySQL', 'mariadb' => 'MariaDB', 'postgresql' => 'PostgreSQL', 'mssql' => 'MSSQL', 'oracle' => 'Oracle'];
-        $base = new ReflectionClass('tommyknocker\\pdodb\\tests\\' . $name . '\\Base' . $classes[$name] . 'TestCase');
-        $config = ['enable_regexp' => false];
-        foreach (['DB_HOST' => 'host', 'DB_PORT' => 'port', 'DB_USER' => 'username', 'DB_PASSWORD' => 'password',
-            'DB_NAME' => 'dbname', 'DB_CHARSET' => 'charset', 'DB_SERVICE_NAME' => 'service_name'] as $constant => $key) {
-            if ($base->hasConstant($constant)) {
-                $config[$key] = $base->getConstant($constant);
-            }
-        }
-        $config += ['encrypt' => true, 'trust_server_certificate' => true];
-        return new PdoDb(['postgresql' => 'pgsql', 'mssql' => 'sqlsrv', 'oracle' => 'oci'][$name] ?? $name, $config);
+        return IntegrationDatabases::provider(['postgresql', 'mariadb']);
     }
 
     private function call(McpServer $server, string $tool, array $arguments = []): array
@@ -59,7 +39,7 @@ final class McpDatabasePolicyTests extends TestCase
     #[DataProvider('databases')]
     public function testCatalogVisibilityAndColumnSearch(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         $pdo = $db->connection->getPdo();
         $dialect = $db->connection->getDialect();
         $suffix = strtoupper(bin2hex(random_bytes(4)));
@@ -107,7 +87,7 @@ final class McpDatabasePolicyTests extends TestCase
     #[DataProvider('timeoutDatabases')]
     public function testTimeoutActuallyAbortsAndSessionIsRestored(string $name): void
     {
-        $db = $this->database($name);
+        $db = IntegrationDatabases::connect($name);
         $pdo = $db->connection->getPdo();
         $before = $this->timeout($pdo, $name);
         $guard = new McpExecutionGuard($db, 25);
@@ -152,7 +132,7 @@ final class McpDatabasePolicyTests extends TestCase
 
     public function testPostgreSqlDuplicateNamesDoNotMixSchemasOrForeignKeys(): void
     {
-        $db = $this->database('postgresql');
+        $db = IntegrationDatabases::connect('postgresql');
         $pdo = $db->connection->getPdo();
         $suffix = bin2hex(random_bytes(4));
         $a = 'mcp_a_' . $suffix;
