@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\sqlite;
 
 use InvalidArgumentException;
+use PDO;
+use Pdo\Sqlite;
 use tommyknocker\pdodb\PdoDb;
 
 /**
@@ -12,6 +14,37 @@ use tommyknocker\pdodb\PdoDb;
  */
 final class ConnectionTests extends BaseSqliteTestCase
 {
+    public function testLibraryCreatesTheDriverSubclassAndRegistersRegexp(): void
+    {
+        $pdo = self::$db->connection->getPdo();
+
+        $this->assertInstanceOf(Sqlite::class, $pdo);
+        $this->assertSame(1, (int)$pdo->query("SELECT 'abc' REGEXP '^a'")->fetchColumn());
+        $this->assertSame('xbc', $pdo->query("SELECT regexp_replace('abc', '^a', 'x')")->fetchColumn());
+    }
+
+    public function testRegexpIsRegisteredOnAPlainPdoPassedIn(): void
+    {
+        $pdo = new PDO('sqlite::memory:', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+
+        // PHP 8.5 deprecates PDO::sqliteCreateFunction() on a plain PDO; that is the only path for an object we did not create
+        $deprecations = [];
+        set_error_handler(static function (int $level, string $message) use (&$deprecations): bool {
+            $deprecations[] = $message;
+
+            return true;
+        }, E_DEPRECATED);
+
+        try {
+            $db = new PdoDb('sqlite', ['pdo' => $pdo]);
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame(1, (int)$db->rawQueryValue("SELECT 'abc' REGEXP '^a'"));
+        $this->assertSame(PHP_VERSION_ID >= 80500, $deprecations !== []);
+    }
+
     public function testSqliteMinimalParams(): void
     {
         $dsn = self::$db->connection->getDialect()->buildDsn([

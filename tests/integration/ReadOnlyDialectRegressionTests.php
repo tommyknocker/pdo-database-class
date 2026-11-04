@@ -24,7 +24,7 @@ final class ReadOnlyDialectRegressionTests extends TestCase
         if ($driver === false || $dsn === false) {
             self::markTestSkipped('Set PDODB_TEST_DRIVER and PDODB_TEST_DSN to run integration tests.');
         }
-        $pdo = new PDO($dsn, getenv('PDODB_TEST_USER') ?: '', getenv('PDODB_TEST_PASSWORD') ?: '');
+        $pdo = PDO::connect($dsn, getenv('PDODB_TEST_USER') ?: '', getenv('PDODB_TEST_PASSWORD') ?: '');
         $this->db = new PdoDb($driver, ['pdo' => $pdo], cache: new Psr16Cache(new ArrayAdapter()));
         $from = $driver === 'oci' ? ' FROM DUAL' : '';
         $this->fixture = 'SELECT 1 AS id, 1 AS tenant_id' . $from

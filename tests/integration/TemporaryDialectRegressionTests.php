@@ -25,7 +25,7 @@ final class TemporaryDialectRegressionTests extends TestCase
         if (!in_array($driver, ['oci', 'sqlsrv'], true) || $dsn === false) {
             self::markTestSkipped('Requires PDODB_TEST_DRIVER=oci or sqlsrv and PDODB_TEST_DSN.');
         }
-        $pdo = new PDO($dsn, getenv('PDODB_TEST_USER') ?: '', getenv('PDODB_TEST_PASSWORD') ?: '');
+        $pdo = PDO::connect($dsn, getenv('PDODB_TEST_USER') ?: '', getenv('PDODB_TEST_PASSWORD') ?: '');
         $this->db = new PdoDb($driver, ['pdo' => $pdo], cache: new Psr16Cache(new ArrayAdapter()));
         if ($driver === 'oci') {
             $this->table = 'ORA$PTT_PDO_AUDIT';

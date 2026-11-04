@@ -53,7 +53,8 @@ class ConnectionFactory
             $user = $config['username'] ?? '';
             $pass = $config['password'] ?? '';
             $options = $dialect->defaultPdoOptions() + ($config['options'] ?? []);
-            $pdo = PHP_VERSION_ID >= 80500 && str_starts_with($dsn, 'sqlite:')
+            // PDO::connect() returns the driver subclass (Pdo\Sqlite), available since PHP 8.4
+            $pdo = str_starts_with($dsn, 'sqlite:')
                 ? PDO::connect($dsn, $user, $pass, $options)
                 : new PDO($dsn, $user, $pass, $options);
         } else {
