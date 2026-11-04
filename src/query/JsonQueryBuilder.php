@@ -100,7 +100,8 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface, ConnectionAwareInte
             return $this;
         }
 
-        $ph = $this->parameterManager->addParam('json_' . $col, $value);
+        // The extracted value is compared as text (SQLite: `json_extract(...) || ''`), so the parameter is text as well
+        $ph = $this->parameterManager->addParam('json_' . $col, is_scalar($value) ? (string)$value : $value);
         $this->conditionBuilder->whereRaw("{$expr} {$operator} {$ph}");
         return $this;
     }

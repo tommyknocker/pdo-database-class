@@ -277,7 +277,8 @@ class RawValueResolver
             return "{$expr} {$value->getOperator()} {$right}";
         }
 
-        $ph = $this->parameterManager->addParam('jsonpath_' . $value->getColumn(), $compareValue);
+        // The extracted value is compared as text (SQLite: `json_extract(...) || ''`), so the parameter is text as well
+        $ph = $this->parameterManager->addParam('jsonpath_' . $value->getColumn(), is_scalar($compareValue) ? (string)$compareValue : $compareValue);
         return "{$expr} {$value->getOperator()} {$ph}";
     }
 

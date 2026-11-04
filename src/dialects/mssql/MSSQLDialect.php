@@ -18,6 +18,7 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
+use tommyknocker\pdodb\dialects\roles\DialectParameterTypesInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
 use tommyknocker\pdodb\dialects\traits\InsertKeyCacheTrait;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
@@ -30,11 +31,21 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface
+class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectParameterTypesInterface
 {
     use InsertKeyCacheTrait;
 
     use MssqlCatalogQueriesTrait;
+
+    /**
+     * SQL Server takes one type for each column of a multi-row VALUES list from the values of all rows: `0` bound as an
+     * integer next to `45.67` bound as text makes the whole column an integer and the insert fails. Text converts to
+     * whatever the target column is, so only NULL keeps its own type.
+     */
+    public function pdoParameterType(mixed $value): int
+    {
+        return $value === null ? PDO::PARAM_NULL : PDO::PARAM_STR;
+    }
 
     /**
      * {@inheritDoc}
