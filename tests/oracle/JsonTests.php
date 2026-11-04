@@ -6,12 +6,25 @@ namespace tommyknocker\pdodb\tests\oracle;
 
 use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\tests\shared\JsonNumberComparisonScenarios;
 
 /**
  * JsonTests tests for Oracle.
  */
 final class JsonTests extends BaseOracleTestCase
 {
+    use JsonNumberComparisonScenarios;
+
+    protected function numericStringsAreNumbers(): bool
+    {
+        return true;
+    }
+
+    protected function createJsonNumberTableSql(): string
+    {
+        return 'CREATE TABLE json_number_cmp (id NUMBER PRIMARY KEY, data VARCHAR2(4000) CONSTRAINT json_number_cmp_is_json CHECK (data IS JSON))';
+    }
+
     public function testJsonMethods(): void
     {
         $db = self::$db;

@@ -92,17 +92,14 @@ class JsonQueryBuilder implements JsonQueryBuilderInterface, ConnectionAwareInte
         string $cond = 'AND'
     ): static {
         $operator = QueryConstants::normalizeConditionOperator($operator);
-        $expr = $this->dialect->formatJsonGet($col, $path);
 
         if ($value instanceof RawValue) {
             $right = $this->resolveRawValue($value);
-            $this->conditionBuilder->where($expr . " {$operator} " . $right);
+            $this->conditionBuilder->where($this->dialect->formatJsonGet($col, $path) . " {$operator} " . $right);
             return $this;
         }
 
-        // The extracted value is compared as text (SQLite: `json_extract(...) || ''`), so the parameter is text as well
-        $ph = $this->parameterManager->addParam('json_' . $col, is_scalar($value) ? (string)$value : $value);
-        $this->conditionBuilder->whereRaw("{$expr} {$operator} {$ph}");
+        $this->conditionBuilder->whereRaw(JsonPathComparison::sql($this->dialect, $this->parameterManager, 'json_' . $col, $col, $path, $operator, $value));
         return $this;
     }
 

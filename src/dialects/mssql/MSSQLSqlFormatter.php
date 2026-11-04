@@ -47,6 +47,19 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
+     * The condition "<number at the path> <operator> <placeholder>". NULL for a value that is not a number. A JSON string that
+     * holds a number counts as that number: jsonSet() writes numbers as strings here, and JSON_VALUE returns both as text.
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $value = 'JSON_VALUE(' . $this->quoteIdentifier($col) . ", '" . $this->buildJsonPathString($this->normalizeJsonPath($path)) . "')";
+
+        return "TRY_CAST({$value} AS DECIMAL(38,10)) {$operator} {$placeholder}";
+    }
+
+    /**
      * {@inheritDoc}
      *
      * @param array<int|string, mixed> $options

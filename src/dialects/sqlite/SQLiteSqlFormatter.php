@@ -70,6 +70,22 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
+     * The condition "<number at the path> <operator> <placeholder>"; NULL for a value that is not a JSON number.
+     * PDO binds a float as text, which SQLite orders after every number, so the placeholder is converted to a number.
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $column = $this->quoteIdentifier($col);
+        $jsonPath = $this->buildJsonPathString($parts);
+
+        return "CASE WHEN json_type({$column}, '{$jsonPath}') IN ('integer', 'real') THEN json_extract({$column}, '{$jsonPath}') END "
+            . "{$operator} CAST({$placeholder} AS NUMERIC)";
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string

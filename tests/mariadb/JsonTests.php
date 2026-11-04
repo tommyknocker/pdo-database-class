@@ -6,12 +6,15 @@ namespace tommyknocker\pdodb\tests\mariadb;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\tests\shared\JsonNumberComparisonScenarios;
 
 /**
  * JsonTests tests for mariadb.
  */
 final class JsonTests extends BaseMariaDBTestCase
 {
+    use JsonNumberComparisonScenarios;
+
     /**
      * @return array<string, array{0: mixed, 1: string}> value, JSON type
      */
@@ -45,6 +48,16 @@ final class JsonTests extends BaseMariaDBTestCase
         } finally {
             $db->schema()->dropTableIfExists('json_set_types');
         }
+    }
+
+    protected function numericStringsAreNumbers(): bool
+    {
+        return false;
+    }
+
+    protected function createJsonNumberTableSql(): string
+    {
+        return 'CREATE TABLE json_number_cmp (id INT PRIMARY KEY, data JSON)';
     }
 
     public function testJsonMethods(): void

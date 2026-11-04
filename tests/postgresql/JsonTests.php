@@ -5,12 +5,25 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\postgresql;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\tests\shared\JsonNumberComparisonScenarios;
 
 /**
  * JsonTests tests for postgresql.
  */
 final class JsonTests extends BasePostgreSQLTestCase
 {
+    use JsonNumberComparisonScenarios;
+
+    protected function numericStringsAreNumbers(): bool
+    {
+        return false;
+    }
+
+    protected function createJsonNumberTableSql(): string
+    {
+        return 'CREATE TABLE json_number_cmp (id INT PRIMARY KEY, data JSONB)';
+    }
+
     public function testJsonMethods(): void
     {
         $db = self::$db; // configured for MySQL in suite setup

@@ -126,6 +126,19 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     /* ---------------- JSON methods ---------------- */
 
     /**
+     * The condition "<number at the path> <operator> <placeholder>". NULL for a value that is not a number. A JSON string that
+     * holds a number counts as that number: jsonSet() writes numbers as strings here, and RETURNING NUMBER converts them.
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $jsonPath = $this->buildJsonPathString($this->normalizeJsonPath($path));
+
+        return 'JSON_VALUE(' . $this->quoteIdentifier($col) . ", '{$jsonPath}' RETURNING NUMBER) {$operator} {$placeholder}";
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string

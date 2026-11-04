@@ -269,17 +269,22 @@ class RawValueResolver
      */
     protected function resolveJsonPathValue(JsonPathValue $value): string
     {
-        $expr = $this->dialect->formatJsonGet($value->getColumn(), $value->getPath());
         $compareValue = $value->getCompareValue();
 
         if ($compareValue instanceof RawValue) {
             $right = $this->resolveRawValue($compareValue);
-            return "{$expr} {$value->getOperator()} {$right}";
+            return $this->dialect->formatJsonGet($value->getColumn(), $value->getPath()) . " {$value->getOperator()} {$right}";
         }
 
-        // The extracted value is compared as text (SQLite: `json_extract(...) || ''`), so the parameter is text as well
-        $ph = $this->parameterManager->addParam('jsonpath_' . $value->getColumn(), is_scalar($compareValue) ? (string)$compareValue : $compareValue);
-        return "{$expr} {$value->getOperator()} {$ph}";
+        return JsonPathComparison::sql(
+            $this->dialect,
+            $this->parameterManager,
+            'jsonpath_' . $value->getColumn(),
+            $value->getColumn(),
+            $value->getPath(),
+            $value->getOperator(),
+            $compareValue
+        );
     }
 
     /**

@@ -20,6 +20,7 @@ use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
+use tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface;
 use tommyknocker\pdodb\dialects\roles\DialectMetadataMemoInterface;
 use tommyknocker\pdodb\dialects\roles\DialectParameterTypesInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
@@ -34,7 +35,7 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface
+class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface
 {
     use MetadataMemoTrait;
     use MssqlCatalogQueriesTrait;
@@ -433,6 +434,14 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, D
     public function buildReplaceSql(string $table, array $columns, array $placeholders, bool $isMultiple = false): string
     {
         return $this->dmlBuilder->buildReplaceSql($table, $columns, $placeholders, $isMultiple);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        return $this->sqlFormatter->formatJsonNumberComparison($col, $path, $operator, $placeholder);
     }
 
     /**

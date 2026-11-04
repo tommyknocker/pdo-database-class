@@ -2132,7 +2132,7 @@ tommyknocker\pdodb\dialects\mssql\MSSQLDdlQueryBuilder  public uniqueidentifier(
 tommyknocker\pdodb\dialects\mssql\MSSQLDdlQueryBuilder  public uuid(): ColumnSchema
 tommyknocker\pdodb\dialects\mssql\MSSQLDdlQueryBuilder  public varbinary(?int $length = null): ColumnSchema
 tommyknocker\pdodb\dialects\mssql\MSSQLDdlQueryBuilder  public xml(): ColumnSchema
-tommyknocker\pdodb\dialects\mssql\MSSQLDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface)
+tommyknocker\pdodb\dialects\mssql\MSSQLDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface)
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  protected buildCreateDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  protected buildDropDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  protected buildListDatabasesSql(): string
@@ -2230,6 +2230,7 @@ tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonExists(string $
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -2362,6 +2363,7 @@ tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonExists(str
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -2480,7 +2482,7 @@ tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlQueryBuilder  public tinyT
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlQueryBuilder  public uuid(): ColumnSchema
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlQueryBuilder  public varbinary(?int $length = null): ColumnSchema
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlQueryBuilder  public year(?int $length = null): ColumnSchema
-tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect (abstract class extends DialectAbstract implements CatalogQueriesInterface, DialectMetadataMemoInterface)
+tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect (abstract class extends DialectAbstract implements CatalogQueriesInterface, DialectJsonNumberComparisonInterface, DialectMetadataMemoInterface)
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  protected FeatureSupportInterface $featureSupport
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  protected MySQLFamilyDdlBuilder $ddlBuilder
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  protected MySQLFamilyDmlBuilder $dmlBuilder
@@ -2578,6 +2580,7 @@ tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonExi
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -2676,6 +2679,7 @@ tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJs
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonType(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatLeast(array $values): string
@@ -2752,7 +2756,7 @@ tommyknocker\pdodb\dialects\oracle\OracleDdlQueryBuilder  public timestampTz(?in
 tommyknocker\pdodb\dialects\oracle\OracleDdlQueryBuilder  public uuid(): ColumnSchema
 tommyknocker\pdodb\dialects\oracle\OracleDdlQueryBuilder  public varchar2(int $length): ColumnSchema
 tommyknocker\pdodb\dialects\oracle\OracleDdlQueryBuilder  public xmltype(): ColumnSchema
-tommyknocker\pdodb\dialects\oracle\OracleDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectParameterTypesInterface)
+tommyknocker\pdodb\dialects\oracle\OracleDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectJsonNumberComparisonInterface, DialectParameterTypesInterface)
 tommyknocker\pdodb\dialects\oracle\OracleDialect  protected buildCreateDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  protected buildDropDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  protected buildListDatabasesSql(): string
@@ -2868,6 +2872,7 @@ tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonExists(string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -3015,6 +3020,7 @@ tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonExists(s
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -3104,7 +3110,7 @@ tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlQueryBuilder  public tinyInt
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlQueryBuilder  public tsquery(): ColumnSchema
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlQueryBuilder  public tsvector(): ColumnSchema
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlQueryBuilder  public uuid(): ColumnSchema
-tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface)
+tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface)
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  protected buildCreateDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  protected buildDefaultExpression(string $colSql, mixed $expr, string $col): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  protected buildDropDatabaseSql(string $databaseName): string
@@ -3200,6 +3206,7 @@ tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonExist
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -3326,6 +3333,7 @@ tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJson
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -3503,6 +3511,8 @@ tommyknocker\pdodb\dialects\roles\DialectJsonInterface  public formatJsonRemove(
 tommyknocker\pdodb\dialects\roles\DialectJsonInterface  public formatJsonReplace(string $col, array|string $path, mixed $value): array
 tommyknocker\pdodb\dialects\roles\DialectJsonInterface  public formatJsonSet(string $col, array|string $path, mixed $value): array
 tommyknocker\pdodb\dialects\roles\DialectJsonInterface  public formatJsonType(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface (interface)
+tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\roles\DialectLoaderInterface (interface)
 tommyknocker\pdodb\dialects\roles\DialectLoaderInterface  public buildLoadCsvSql(string $table, string $filePath, array $options = []): string
 tommyknocker\pdodb\dialects\roles\DialectLoaderInterface  public buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): Generator
@@ -3702,6 +3712,7 @@ tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonExists(s
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -3734,7 +3745,7 @@ tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatYear(string|
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public needsUnionParentheses(): bool
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public normalizeRawValue(string $sql): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public registerRegexpFunctions(PDO $pdo, bool $force = false): void
-tommyknocker\pdodb\dialects\sqlite\SqliteDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface)
+tommyknocker\pdodb\dialects\sqlite\SqliteDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface)
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  protected buildCreateDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  protected buildDefaultExpression(string $colSql, mixed $expr, string $col): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  protected buildDropDatabaseSql(string $databaseName): string
@@ -3824,6 +3835,7 @@ tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonExists(string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonKeys(string $col, array|string|null $path = null): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonLength(string $col, array|string|null $path = null): string
+tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonOrderExpr(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonRemove(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonReplace(string $col, array|string $path, mixed $value): array
@@ -5785,6 +5797,8 @@ tommyknocker\pdodb\query\JoinBuilder  public lateralJoin(string|callable $tableO
 tommyknocker\pdodb\query\JoinBuilder  public leftJoin(string $tableAlias, string|RawValue $condition): static
 tommyknocker\pdodb\query\JoinBuilder  public rebindConnection(ConnectionInterface $connection): void
 tommyknocker\pdodb\query\JoinBuilder  public rightJoin(string $tableAlias, string|RawValue $condition): static
+tommyknocker\pdodb\query\JsonPathComparison (final class)
+tommyknocker\pdodb\query\JsonPathComparison  public static sql(DialectJsonInterface $dialect, ParameterManagerInterface $parameters, string $paramName, string $column, array|string $path, string $operator, mixed $value): string
 tommyknocker\pdodb\query\JsonQueryBuilder (class implements JsonQueryBuilderInterface, ConnectionAwareInterface)
 tommyknocker\pdodb\query\JsonQueryBuilder  protected ConditionBuilderInterface $conditionBuilder
 tommyknocker\pdodb\query\JsonQueryBuilder  protected ConnectionInterface $connection

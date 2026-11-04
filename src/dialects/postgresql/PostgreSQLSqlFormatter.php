@@ -65,6 +65,20 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
+     * The condition "<number at the path> <operator> <placeholder>"; NULL for a value that is not a JSON number.
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $column = $this->quoteIdentifier($col);
+        $array = $this->buildPostgreSqlJsonPath($parts);
+
+        return "CASE WHEN jsonb_typeof({$column}::jsonb #> {$array}) = 'number' THEN ({$column} #>> {$array})::numeric END {$operator} {$placeholder}";
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string

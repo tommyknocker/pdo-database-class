@@ -23,6 +23,7 @@ use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\dialects\loaders\OracleFileLoader;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
+use tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface;
 use tommyknocker\pdodb\dialects\roles\DialectParameterTypesInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
 use tommyknocker\pdodb\exceptions\ResourceException;
@@ -35,7 +36,7 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class OracleDialect extends DialectAbstract implements CatalogQueriesInterface, DialectParameterTypesInterface
+class OracleDialect extends DialectAbstract implements CatalogQueriesInterface, DialectJsonNumberComparisonInterface, DialectParameterTypesInterface
 {
     use OracleCatalogQueriesTrait;
     /** @var OracleFeatureSupport Feature support instance */
@@ -928,6 +929,14 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface, 
         // Oracle doesn't support direct SQL LOAD JSON like MySQL
         // Use JSON functions or external tables instead
         throw new ResourceException('Direct SQL LOAD JSON is not supported in Oracle. Use JSON functions or external tables.');
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        return $this->sqlFormatter->formatJsonNumberComparison($col, $path, $operator, $placeholder);
     }
 
     /**

@@ -50,6 +50,18 @@ $adults = $db->find()
     ->get();
 ```
 
+A number is compared with the JSON value as a number, so `age > 27` does not pick `5`. A JSON value that is not a number
+(a string, a boolean, `null`, a missing key) does not match such a condition and never makes the statement fail. Any other
+value (a string, for example) is compared as text:
+
+```php
+->where(Db::jsonPath('meta', ['age'], '>', 27))      // numeric: matches 30 and 100, not 5 and not "abc"
+->where(Db::jsonPath('meta', ['city'], '=', 'NYC'))  // text
+```
+
+A JSON string that holds a number (`"30"`) is not a number on MySQL, MariaDB, PostgreSQL and SQLite, so `= 30` does not match it.
+On SQL Server and Oracle it is, because `jsonSet()` writes numbers as strings there.
+
 ### Multiple JSON Conditions
 
 ```php

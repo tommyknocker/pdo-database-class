@@ -40,6 +40,20 @@ abstract class MySQLFamilySqlFormatter extends SqlFormatterAbstract
     /* ---------------- JSON methods ---------------- */
 
     /**
+     * The condition "<number at the path> <operator> <placeholder>"; NULL for a value that is not a JSON number.
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $extract = 'JSON_EXTRACT(' . $this->quoteIdentifier($col) . ", '" . $this->buildJsonPathString($parts) . "')";
+
+        return "CASE WHEN JSON_TYPE({$extract}) IN ('INTEGER', 'UNSIGNED INTEGER', 'DOUBLE', 'DECIMAL') "
+            . "THEN CAST(JSON_UNQUOTE({$extract}) AS DECIMAL(65,10)) END {$operator} {$placeholder}";
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string

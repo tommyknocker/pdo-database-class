@@ -198,6 +198,16 @@ $db = new PdoDb('sqlite', [
 ]);
 ```
 
+### SQLite and Types
+
+- A whole-number parameter is bound as an integer, so it matches an integer from a column without a declared type (a
+  CTE column, a derived table, an expression).
+- PDO has no way to bind a float as a number: it is sent as text. SQLite orders text after every number, so comparing a
+  float parameter with such an untyped column finds nothing. Compare with a column of the table (its declared type converts
+  the text), or write `CAST(? AS REAL)`. JSON-path comparisons already do this.
+- The emulated `REGEXP`, `regexp_replace()` and `regexp_extract()` take a pattern without delimiters, as the other databases
+  do: a `/` in it is a literal slash. An invalid pattern throws a `QueryException`.
+
 ### SQLite Open Modes
 
 - `ro` - Read-only access

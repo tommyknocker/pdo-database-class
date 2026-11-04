@@ -5,12 +5,25 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\mssql;
 
 use tommyknocker\pdodb\helpers\Db;
+use tommyknocker\pdodb\tests\shared\JsonNumberComparisonScenarios;
 
 /**
  * JsonTests tests for MSSQL.
  */
 final class JsonTests extends BaseMSSQLTestCase
 {
+    use JsonNumberComparisonScenarios;
+
+    protected function numericStringsAreNumbers(): bool
+    {
+        return true;
+    }
+
+    protected function createJsonNumberTableSql(): string
+    {
+        return 'CREATE TABLE json_number_cmp (id INT PRIMARY KEY, data NVARCHAR(MAX))';
+    }
+
     public function testJsonMethods(): void
     {
         $db = self::$db;

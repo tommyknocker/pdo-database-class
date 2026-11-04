@@ -49,6 +49,12 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
       columns are correct. Existing ones are not repaired: find them with
       `SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION FROM INFORMATION_SCHEMA.COLUMNS WHERE DATA_TYPE = 'decimal' AND NUMERIC_SCALE = 0`
       and `ALTER COLUMN` the ones that should hold fractions. The rounded values cannot be recovered.
+- [ ] **JSON-path comparison with a number** (`whereJsonPath()`, `Db::jsonPath()`) is numeric. Before, the value was compared as
+      text and returned wrong rows for ordering (`> 27` selected `5`). A JSON string that holds a number no longer matches
+      a numeric condition on MySQL, MariaDB, PostgreSQL and SQLite (it still does on SQL Server and Oracle). On MariaDB
+      `jsonSet()` / `jsonReplace()` used to store numbers, booleans, objects and lists as JSON strings; documents written
+      that way keep the strings. Find them with `SELECT id FROM t WHERE JSON_TYPE(JSON_EXTRACT(col, '$.path')) = 'STRING'`
+      and rewrite them with `jsonSet()`.
 - [ ] MySQL `LOCAL INFILE` is off unless you pass `PDO\Mysql::ATTR_LOCAL_INFILE`.
 - [ ] CLI: unknown options exit with 2, failures print `Error: ...` and exit with 1 (`PDODB_DEBUG=1` for traces).
 - [ ] AI settings: one selected provider (`PDODB_AI_API_KEY`, `PDODB_AI_MODEL`).

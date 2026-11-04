@@ -19,6 +19,7 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\FeatureSupportInterface;
 use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
+use tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface;
 use tommyknocker\pdodb\dialects\roles\DialectMetadataMemoInterface;
 use tommyknocker\pdodb\dialects\traits\MetadataMemoTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -31,7 +32,7 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 /**
  * Behaviour shared by MySQL and MariaDB. Engine differences live in the subclasses.
  */
-abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQueriesInterface, DialectMetadataMemoInterface
+abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQueriesInterface, DialectJsonNumberComparisonInterface, DialectMetadataMemoInterface
 {
     use MetadataMemoTrait;
     use MySqlCatalogQueriesTrait;
@@ -543,6 +544,14 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
     {
         // MySQL/MariaDB uses native LOAD XML LOCAL INFILE which loads entire file at once
         yield $this->buildLoadXML($table, $filePath, $options);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        return $this->sqlFormatter->formatJsonNumberComparison($col, $path, $operator, $placeholder);
     }
 
     /**
