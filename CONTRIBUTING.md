@@ -207,8 +207,14 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 
 3. **Run quality checks:**
    ```bash
-   composer pdodb:check-all  # PHPStan, code style, doc links, PHPUnit, integration tests, examples (needs every database)
+   composer pdodb:check-all  # PHPStan, code style, doc links, API surface, PHPUnit, integration tests, examples (needs every database)
    ```
+
+   `scripts/api-surface.txt` lists every public and protected symbol of `src/` with its signature. Search it before you
+   add a function, method, class or constant: the thing you need may already exist under another name. When you add,
+   rename or remove a symbol, `composer pdodb:api-surface` fails until `composer pdodb:api-surface:write` updates the
+   file; commit that file and read its diff, because each added line is a new symbol. The script also prints hints for a
+   new name that extends a sibling's name (`from` next to `fromKey`) or repeats its signature.
 
 4. **Commit your changes** with a descriptive message
 
