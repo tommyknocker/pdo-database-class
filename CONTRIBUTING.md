@@ -207,7 +207,7 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/tommyk
 
 3. **Run quality checks:**
    ```bash
-   composer pdodb:check-all  # Runs PHPStan + PHPUnit + Examples
+   composer pdodb:check-all  # PHPStan, code style, doc links, PHPUnit, integration tests, examples (needs every database)
    ```
 
 4. **Commit your changes** with a descriptive message

@@ -101,12 +101,14 @@
     "pdodb:test:ai:live": "@php scripts/test-ai-live.php --run",
     "pdodb:test:ai:db": "@php vendor/bin/phpunit tests/integration/AiQueryAdviceDatabaseTests.php",
     "pdodb:test:mcp:db": "@php vendor/bin/phpunit tests/integration/McpDatabasePolicyTests.php",
+    "pdodb:test:integration": "@php vendor/bin/phpunit --testsuite \"Integration Tests\"",
+    "pdodb:test:dialects": "@php scripts/test-dialect-regressions.php",
     "pdodb:phpstan": "phpstan analyse",
     "pdodb:check-doc-links": "@php scripts/check-doc-links.php",
     "pdodb:cs-fix": "php-cs-fixer fix",
     "pdodb:cs-check": "php-cs-fixer fix --dry-run --diff",
     "pdodb:test-examples": "bash scripts/test-examples.sh",
-    "pdodb:quality-check": "bash scripts/quality-check.sh",
+    "pdodb:quality-check": "@pdodb:check-all",
     "pdodb:infection": "infection",
     "pdodb:infection:quick": "infection --min-msi=50 --min-covered-msi=60 --threads=4",
     "pdodb:infection:ci": "infection --min-msi=70 --min-covered-msi=75 --logger-github",
@@ -118,7 +120,10 @@
     "pdodb:check-all": [
       "@pdodb:phpstan",
       "@pdodb:cs-check",
+      "@pdodb:check-doc-links",
       "@pdodb:test",
+      "@pdodb:test:integration",
+      "@pdodb:test:dialects",
       "@pdodb:test-examples"
     ],
     "pdodb:migrate": "php scripts/migrate.php",
@@ -132,10 +137,7 @@
     "pdodb:schema:inspect": "php scripts/schema-inspect.php",
     "pdodb:query:test": "php scripts/query-test.php",
     "pdodb:check-all-with-infection": [
-      "@pdodb:phpstan",
-      "@pdodb:cs-check",
-      "@pdodb:test",
-      "@pdodb:test-examples",
+      "@pdodb:check-all",
       "@pdodb:infection:ci"
     ],
     "pdodb:fix-all": [

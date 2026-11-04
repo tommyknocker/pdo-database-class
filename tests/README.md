@@ -201,8 +201,18 @@ Some CLI tests are dialect-specific:
 # Run all tests
 vendor/bin/phpunit
 
-# Run all checks (PHPStan, PHP CS Fixer, PHPUnit, examples)
+# Run all checks (PHPStan, PHP CS Fixer, documentation links, PHPUnit, integration tests,
+# dialect regression tests, examples); it needs every database
 composer pdodb:check-all
+
+# Tests that connect to every database themselves (tests/integration), and the regression tests of one
+# database at a time (they get PDODB_TEST_* from scripts/test-dialect-regressions.php)
+composer pdodb:test:integration
+composer pdodb:test:dialects              # all databases
+php scripts/test-dialect-regressions.php mysql postgresql   # chosen ones
+
+# One database of the integration tests (a data set is named after it)
+vendor/bin/phpunit --testsuite "Integration Tests" --filter '/^(?!.*with data set ).*$|with data set "mysql"/'
 
 # Run specific database tests (using testsuite)
 vendor/bin/phpunit --testsuite "MySQL Tests"

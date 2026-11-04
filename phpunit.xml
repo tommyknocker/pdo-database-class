@@ -4,6 +4,10 @@
          bootstrap="vendor/autoload.php"
          colors="true"
          stopOnFailure="false"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnDeprecation="true"
+         failOnNotice="true"
          cacheDirectory=".phpunit.cache"
          displayDetailsOnTestsThatTriggerDeprecations="true"
          displayDetailsOnTestsThatTriggerErrors="true"
@@ -56,6 +60,19 @@
         <testsuite name="Shared Tests">
             <directory suffix="Tests.php">./tests/shared</directory>
             <exclude>./tests/shared/Base*.php</exclude>
+        </testsuite>
+        <!-- Tests that connect to every database themselves, named by data set ("mysql", ...); a CI job with one database selects its own by that name (the filter option) -->
+        <testsuite name="Integration Tests">
+            <directory suffix="Tests.php">./tests/integration</directory>
+            <exclude>./tests/integration/SelectExecutionRegressionTests.php</exclude>
+            <exclude>./tests/integration/ReadOnlyDialectRegressionTests.php</exclude>
+            <exclude>./tests/integration/TemporaryDialectRegressionTests.php</exclude>
+        </testsuite>
+        <!-- Tests of one database at a time: they need PDODB_TEST_DRIVER and PDODB_TEST_DSN, which scripts/test-dialect-regressions.php sets -->
+        <testsuite name="Dialect Regression Tests">
+            <file>./tests/integration/SelectExecutionRegressionTests.php</file>
+            <file>./tests/integration/ReadOnlyDialectRegressionTests.php</file>
+            <file>./tests/integration/TemporaryDialectRegressionTests.php</file>
         </testsuite>
     </testsuites>
     <php>
