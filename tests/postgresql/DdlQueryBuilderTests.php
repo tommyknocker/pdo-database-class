@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\postgresql;
 
+use tommyknocker\pdodb\tests\shared\DecimalScaleScenarios;
+
 /**
  * PostgreSQL-specific DDL Query Builder tests.
  */
 final class DdlQueryBuilderTests extends BasePostgreSQLTestCase
 {
+    use DecimalScaleScenarios;
+
     /**
      * Test creating table with foreign key using schema API.
      */

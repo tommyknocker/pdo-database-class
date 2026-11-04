@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\oracle;
 
+use tommyknocker\pdodb\tests\shared\DecimalScaleScenarios;
+
 /**
  * Oracle-specific DDL Query Builder tests.
  */
 final class DdlQueryBuilderTests extends BaseOracleTestCase
 {
+    use DecimalScaleScenarios;
+
     /**
      * Test creating table with foreign key using schema API.
      */

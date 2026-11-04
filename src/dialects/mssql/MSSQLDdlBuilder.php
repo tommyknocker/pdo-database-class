@@ -616,10 +616,11 @@ class MSSQLDdlBuilder implements DdlBuilderInterface
         } elseif ($type === 'VARCHAR' && $length === null) {
             // VARCHAR without length defaults to VARCHAR(MAX) in MSSQL
             $typeDef = 'VARCHAR(MAX)';
+        } elseif ($precision !== null && $scale !== null) {
+            // before the plain length: the precision of DECIMAL(10,2) is stored as the length, and DECIMAL(10) has no fraction
+            $typeDef .= "({$precision},{$scale})";
         } elseif ($length !== null) {
             $typeDef .= "({$length})";
-        } elseif ($precision !== null && $scale !== null) {
-            $typeDef .= "({$precision},{$scale})";
         } elseif ($precision !== null) {
             $typeDef .= "({$precision})";
         }

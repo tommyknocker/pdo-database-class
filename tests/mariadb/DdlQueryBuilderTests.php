@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mariadb;
 
+use tommyknocker\pdodb\tests\shared\DecimalScaleScenarios;
+
 /**
  * MariaDB-specific DDL Query Builder tests.
  */
 final class DdlQueryBuilderTests extends BaseMariaDBTestCase
 {
+    use DecimalScaleScenarios;
+
     /**
      * Test creating table with foreign key using schema API.
      */

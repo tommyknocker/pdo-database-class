@@ -4,11 +4,32 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mssql;
 
+use tommyknocker\pdodb\tests\shared\DecimalScaleScenarios;
+
 /**
  * MSSQL-specific DDL Query Builder tests.
  */
 final class DdlQueryBuilderTests extends BaseMSSQLTestCase
 {
+    use DecimalScaleScenarios;
+
+    public function testAlteringADecimalColumnKeepsTheNewFraction(): void
+    {
+        $schema = self::$db->schema();
+        $schema->dropTableIfExists('decimal_alter');
+
+        try {
+            $schema->createTable('decimal_alter', ['id' => $schema->primaryKey(), 'price' => $schema->decimal(10, 2)]);
+            $schema->alterColumn('decimal_alter', 'price', $schema->decimal(12, 3));
+            self::$db->find()->table('decimal_alter')->insert(['price' => 7.891]);
+
+            $row = array_change_key_case(self::$db->find()->from('decimal_alter')->getOne());
+            $this->assertEqualsWithDelta(7.891, (float)$row['price'], 0.00001);
+        } finally {
+            $schema->dropTableIfExists('decimal_alter');
+        }
+    }
+
     /**
      * Test creating table with foreign key using schema API.
      */

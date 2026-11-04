@@ -44,6 +44,11 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
       Existing overrides returning `?int` or `int|string|null` remain type-compatible. On MySQL a supplied key that is
       not AUTO_INCREMENT is reported as `null` when a BEFORE INSERT trigger may replace it or trigger metadata access
       cannot be established.
+- [ ] **SQL Server `decimal(p, s)` columns:** before this release `decimal(10, 2)` created `DECIMAL(10)` (no fraction) in
+      `createTable()`, `addColumn()` and `alterColumn()`, and the database rounded every value to a whole number. New
+      columns are correct. Existing ones are not repaired: find them with
+      `SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION FROM INFORMATION_SCHEMA.COLUMNS WHERE DATA_TYPE = 'decimal' AND NUMERIC_SCALE = 0`
+      and `ALTER COLUMN` the ones that should hold fractions. The rounded values cannot be recovered.
 - [ ] MySQL `LOCAL INFILE` is off unless you pass `PDO\Mysql::ATTR_LOCAL_INFILE`.
 - [ ] CLI: unknown options exit with 2, failures print `Error: ...` and exit with 1 (`PDODB_DEBUG=1` for traces).
 - [ ] AI settings: one selected provider (`PDODB_AI_API_KEY`, `PDODB_AI_MODEL`).

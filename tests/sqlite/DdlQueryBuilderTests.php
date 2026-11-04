@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\tests\sqlite;
 
 use tommyknocker\pdodb\exceptions\QueryException;
+use tommyknocker\pdodb\tests\shared\DecimalScaleScenarios;
 
 /**
  * SQLite-specific DDL Query Builder tests.
@@ -13,6 +14,8 @@ use tommyknocker\pdodb\exceptions\QueryException;
  */
 final class DdlQueryBuilderTests extends BaseSqliteTestCase
 {
+    use DecimalScaleScenarios;
+
     /**
      * Test drop column with SQLite version check.
      *

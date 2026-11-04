@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mysql;
 
+use tommyknocker\pdodb\tests\shared\DecimalScaleScenarios;
+
 /**
  * MySQL-specific DDL Query Builder tests.
  */
 final class DdlQueryBuilderTests extends BaseMySQLTestCase
 {
+    use DecimalScaleScenarios;
+
     /**
      * Test creating table with foreign key using schema API.
      */
