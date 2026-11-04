@@ -6,13 +6,17 @@ on:
 
 jobs:
   phpstan:
-    name: PHPStan Static Analysis
+    name: PHPStan Static Analysis (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: pdo, pdo_mysql, pdo_pgsql, pdo_sqlite, pdo_oci
           coverage: none
       - run: composer validate --strict --no-check-publish
@@ -21,10 +25,15 @@ jobs:
       - run: vendor/bin/phpstan diagnose
       - run: composer pdodb:phpstan
       - run: composer pdodb:cs-check
+        if: matrix.php == '8.4'
 
   mysql:
-    name: MySQL Tests
+    name: MySQL Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
     services:
       mysql:
         image: mysql:8.0
@@ -62,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: pdo_mysql, simplexml, xmlreader, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
@@ -81,6 +90,7 @@ jobs:
       - name: Test MySQL Examples
         run: ./scripts/test-examples.sh --verbose
       - name: Upload MySQL coverage to Codecov
+        if: matrix.php == '8.4'
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -89,8 +99,12 @@ jobs:
           name: mysql-coverage
 
   mariadb:
-    name: MariaDB Tests
+    name: MariaDB Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
     services:
       mariadb:
         image: mariadb:11.2
@@ -129,7 +143,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: pdo_mysql, simplexml, xmlreader, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
@@ -152,6 +166,7 @@ jobs:
           export PDODB_DATABASE="testdb"
           ./scripts/test-examples.sh --verbose
       - name: Upload MariaDB coverage to Codecov
+        if: matrix.php == '8.4'
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -160,8 +175,12 @@ jobs:
           name: mariadb-coverage
 
   postgres:
-    name: PostgreSQL Tests
+    name: PostgreSQL Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
     services:
       postgres:
         image: postgres:16
@@ -198,7 +217,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: pdo_pgsql, simplexml, xmlreader, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
@@ -219,6 +238,7 @@ jobs:
       - name: Test PostgreSQL Examples
         run: ./scripts/test-examples.sh --verbose
       - name: Upload PostgreSQL coverage to Codecov
+        if: matrix.php == '8.4'
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -227,8 +247,12 @@ jobs:
           name: postgres-coverage
 
   sqlite:
-    name: SQLite Tests
+    name: SQLite Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
     services:
       redis:
         image: redis:7-alpine
@@ -252,7 +276,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: pdo_sqlite, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
@@ -266,6 +290,7 @@ jobs:
       - name: Test SQLite Examples
         run: ./scripts/test-examples.sh  --verbose
       - name: Upload SQLite coverage to Codecov
+        if: matrix.php == '8.4'
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -274,7 +299,7 @@ jobs:
           name: sqlite-coverage
 
   php85:
-    name: PHP 8.5 SQLite and shared tests
+    name: PHP 8.5 shared tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -284,16 +309,21 @@ jobs:
           extensions: pdo_sqlite, apcu
           coverage: none
       - run: composer install --no-interaction --prefer-dist
-      - run: vendor/bin/phpunit --testsuite="SQLite Tests" --fail-on-deprecation
-      - run: vendor/bin/phpunit --testsuite="Shared Tests" --fail-on-deprecation
-      - name: Test SQLite integration and dialect regressions on PHP 8.5
-        run: |
-          vendor/bin/phpunit --testsuite="Integration Tests" --no-coverage --filter '/^(?!.*with data set ).*$|with data set "sqlite"/'
-          php scripts/test-dialect-regressions.php sqlite
+      - run: vendor/bin/phpunit --testsuite="Shared Tests"
 
   mssql:
-    name: MSSQL Tests
+    name: MSSQL Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.4'
+            experimental: false
+          # the pecl builds of pdo_sqlsrv and pdo_oci used below are not known to support 8.5 yet: reported, not blocking
+          - php: '8.5'
+            experimental: true
     services:
       mssql:
         image: mcr.microsoft.com/mssql/server:2022-latest
@@ -325,7 +355,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: pdo, pdo_odbc, odbc, redis, memcached, apcu
           coverage: xdebug
       - name: Install Microsoft ODBC Driver and SQL Server Tools
@@ -389,6 +419,7 @@ jobs:
           export PDODB_DATABASE="testdb"
           ./scripts/test-examples.sh --verbose
       - name: Upload MSSQL coverage to Codecov
+        if: matrix.php == '8.4'
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -397,8 +428,18 @@ jobs:
           name: mssql-coverage
 
   oracle:
-    name: Oracle Tests
+    name: Oracle Tests (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.4'
+            experimental: false
+          # the pecl builds of pdo_sqlsrv and pdo_oci used below are not known to support 8.5 yet: reported, not blocking
+          - php: '8.5'
+            experimental: true
     services:
       oracle:
         image: gvenzl/oracle-xe:21-slim
@@ -435,7 +476,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: pdo, redis, memcached, apcu, bz2
           coverage: xdebug
       - name: Install Oracle dependencies
@@ -591,6 +632,7 @@ jobs:
           export PDODB_SERVICE_NAME="XEPDB1"
           ./scripts/test-examples.sh --verbose
       - name: Upload Oracle coverage to Codecov
+        if: matrix.php == '8.4'
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
