@@ -101,16 +101,16 @@ class MariaDBSqlFormatter extends MySQLFamilySqlFormatter
 
         $jsonText = $this->encodeToJson($value);
 
-        // MariaDB's JSON_SET doesn't support CAST(:param AS JSON) directly in the third argument.
+        // MariaDB has no CAST(:param AS JSON), and a plain text parameter is stored as a JSON string whatever it holds:
+        // 999 becomes "999", {"x":1} a string of JSON text. JSON_COMPACT(:param) parses the text, so the value keeps its type.
         // For nested paths, ensure parent exists as object before setting child (similar to MySQL approach).
-        // But without CAST, we need to handle it differently.
         if (count($parts) > 1) {
             $lastSegment = $this->getLastSegment($parts);
             $isLastNumeric = $this->isNumericIndex($lastSegment);
 
             if ($isLastNumeric) {
                 // For array indices, use direct path
-                $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', {$param})";
+                $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', JSON_COMPACT({$param}))";
             } else {
                 // For object keys, ensure parent exists
                 $parentParts = $this->getParentPathParts($parts);
@@ -120,13 +120,12 @@ class MariaDBSqlFormatter extends MySQLFamilySqlFormatter
 
                 // Build expression: set the parent to JSON_SET(COALESCE(JSON_EXTRACT(col,parent), '{}') , '$.<last>', :param)
                 // then write that parent back into the document
-                // Note: Without CAST, MariaDB may store the value as a string, but JSON_SET should handle it
-                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), '{}'), '{$lastKeyPath}', {$param})";
+                $parentNew = "JSON_SET(COALESCE(JSON_EXTRACT({$colQuoted}, '{$parentPath}'), '{}'), '{$lastKeyPath}', JSON_COMPACT({$param}))";
                 $sql = "JSON_SET({$colQuoted}, '{$parentPath}', {$parentNew})";
             }
         } else {
             // simple single-segment path
-            $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', {$param})";
+            $sql = "JSON_SET({$colQuoted}, '{$jsonPath}', JSON_COMPACT({$param}))";
         }
 
         return [$sql, [$param => $jsonText]];
@@ -167,10 +166,8 @@ class MariaDBSqlFormatter extends MySQLFamilySqlFormatter
 
         $jsonText = $this->encodeToJson($value);
 
-        // MariaDB's JSON_REPLACE doesn't support CAST(:param AS JSON) directly in the third argument.
-        // Pass the JSON string directly - MariaDB's JSON_REPLACE will parse it correctly.
-        // Note: This works correctly for objects and arrays, but strings will be stored as JSON strings (quoted).
-        $sql = "JSON_REPLACE({$colQuoted}, '{$jsonPath}', {$param})";
+        // JSON_COMPACT(:param) parses the text, so the value keeps its type (see formatJsonSet).
+        $sql = "JSON_REPLACE({$colQuoted}, '{$jsonPath}', JSON_COMPACT({$param}))";
 
         return [$sql, [$param => $jsonText]];
     }
