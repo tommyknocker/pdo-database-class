@@ -60,6 +60,16 @@
     </testsuites>
     <php>
         <env name="PDODB_NON_INTERACTIVE" value="1" force="true"/>
+        <!-- A developer's .env (loaded into the process by CLI tests) must not reach the AI tests: set but empty is ignored by AiConfig and not overwritten by EnvLoader -->
+        <env name="PDODB_AI_PROVIDER" value="" force="true"/>
+        <env name="PDODB_AI_API_KEY" value="" force="true"/>
+        <env name="PDODB_AI_MODEL" value="" force="true"/>
+        <env name="PDODB_AI_BASE_URL" value="" force="true"/>
+        <env name="PDODB_AI_FOLDER_ID" value="" force="true"/>
+        <env name="PDODB_AI_TEMPERATURE" value="" force="true"/>
+        <env name="PDODB_AI_MAX_TOKENS" value="" force="true"/>
+        <env name="PDODB_AI_TIMEOUT" value="" force="true"/>
+        <env name="PDODB_AI_RETRIES" value="" force="true"/>
     </php>
     <source>
         <include>
