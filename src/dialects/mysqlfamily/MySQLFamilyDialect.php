@@ -32,27 +32,10 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQueriesInterface
 {
     use MySqlCatalogQueriesTrait;
-    private const int PRIMARY_KEY_CACHE_SECONDS = 30;
-
     /**
-     * @var array<string, array{until: float, key: ?string, autoIncrement: bool}> Single-column primary key by table
+     * Report the primary key of the written row. False means no key can be reported; zero is a real key.
      */
-    private array $primaryKeys = [];
-
-    /**
-     * {@inheritDoc}
-     *
-     * The connection reports only AUTO_INCREMENT values. The id of the written row is therefore:
-     *  - for `ON DUPLICATE KEY UPDATE`: the connection's id (the row inserted or updated), nothing for a key that is not
-     *    AUTO_INCREMENT; the key the statement carries is not used, since a conflict on another unique column updates
-     *    another row;
-     *  - nothing, when a plain insert wrote no row (`INSERT IGNORE` skipped it);
-     *  - the key the statement supplied for the table's single-column primary key, of any type (a UUID, a text key);
-     *  - otherwise the connection's value (read first, before any other query), when that key is AUTO_INCREMENT;
-     *  - nothing for a key the database fills in from a default, which MySQL cannot report.
-     * A table without a single-column primary key keeps the connection's answer.
-     */
-    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|false|null
     {
         if ($this->pdo === null) {
             return null;
@@ -61,63 +44,85 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
         if ($insert === null) {
             return null;
         }
-        // The connection's id belongs to the last statement: read it before the catalog query below replaces it
-        $connectionId = $this->pdo->lastInsertId();
+        // A zero from lastInsertId() means no generated id; a supplied zero key is handled separately below.
+        $rawId = $this->pdo->lastInsertId();
+        $connectionId = $rawId === '0' ? null : InsertId::normalize($rawId);
+        $primaryKey = $this->primaryKeyOf($insert);
+        if ($primaryKey['key'] === null) {
+            return false;
+        }
         if (preg_match('/\bON\s+DUPLICATE\s+KEY\b/i', $insert->tail) === 1) {
-            // An upsert may have updated a row found through another unique column, so the key it carried can belong to
-            // another row, and rowCount() cannot tell an insert from an unchanged conflict (1 for both under
-            // MYSQL_ATTR_FOUND_ROWS). The connection can: it names the row inserted or updated, and nothing when the
-            // update changed no value (unless the update says LAST_INSERT_ID(<key>)). A key that is not AUTO_INCREMENT
-            // is not reported to the connection, so there is no answer for it.
-            $primaryKey = $this->primaryKeyOf($insert, true);
-
-            return $primaryKey['key'] !== null && !$primaryKey['autoIncrement'] ? 0 : (InsertId::from($connectionId) ?? 0);
+            // Under FOUND_ROWS an unchanged conflict has rowCount() 1 too; only the connection names the updated row.
+            return $primaryKey['autoIncrement'] ? ($connectionId ?? false) : false;
         }
         if ($stmt->rowCount() === 0) {
-            return 0; // INSERT IGNORE skipped the row
+            return false; // INSERT IGNORE skipped the row
+        }
+        if ($primaryKey['autoIncrement'] && $connectionId !== null) {
+            return $connectionId;
+        }
+        if (!$this->canReportSuppliedKey($insert)) {
+            return false;
         }
 
-        $primaryKey = $this->primaryKeyOf($insert, true);
-        if ($primaryKey['key'] === null) {
-            return null;
-        }
-        $supplied = $insert->suppliedKey($primaryKey['key'], $params);
-        if ($supplied !== null) {
-            return $supplied;
-        }
-
-        return $primaryKey['autoIncrement'] ? (InsertId::from($connectionId) ?? 0) : 0;
+        return $insert->suppliedKey($primaryKey['key'], $params) ?? false;
     }
 
     /**
-     * The single-column primary key of the table an INSERT writes to, and whether it is AUTO_INCREMENT.
+     * Resolve the table as the INSERT does, including TEMP shadowing, on every lookup.
+     * Metadata is deliberately not cached across arbitrary DDL.
      *
      * @return array{key: ?string, autoIncrement: bool}
      */
-    protected function primaryKeyOf(InsertStatement $insert, bool $useCache): array
+    protected function primaryKeyOf(InsertStatement $insert): array
     {
-        $known = $this->primaryKeys[$insert->qualifiedTable] ?? null;
-        if ($useCache && $known !== null && $known['until'] > microtime(true)) {
-            return ['key' => $known['key'], 'autoIncrement' => $known['autoIncrement']];
-        }
-
-        $parts = preg_split('/\s*\.\s*/', $insert->qualifiedTable) ?: [$insert->qualifiedTable];
-        $schema = count($parts) > 1 ? trim($parts[count($parts) - 2], '`" ') : null;
         $pdo = $this->pdo;
         assert($pdo !== null);
-        $statement = $pdo->prepare(
-            'SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS '
-            . "WHERE TABLE_SCHEMA = COALESCE(?, DATABASE()) AND TABLE_NAME = ? AND COLUMN_KEY = 'PRI'"
-        );
-        $statement->execute([$schema, $insert->table]);
-        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $statement = $pdo->query('SHOW COLUMNS FROM ' . $insert->qualifiedTable);
+        $keys = [];
+        foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $column = array_change_key_case($row);
+            if (strtoupper((string)$column['key']) === 'PRI') {
+                $keys[] = $column;
+            }
+        }
 
-        $found = count($rows) === 1
-            ? ['key' => (string)$rows[0]['COLUMN_NAME'], 'autoIncrement' => stripos((string)$rows[0]['EXTRA'], 'auto_increment') !== false]
+        return count($keys) === 1
+            ? ['key' => (string)$keys[0]['field'], 'autoIncrement' => stripos((string)$keys[0]['extra'], 'auto_increment') !== false]
             : ['key' => null, 'autoIncrement' => false];
-        $this->primaryKeys[$insert->qualifiedTable] = ['until' => microtime(true) + self::PRIMARY_KEY_CACHE_SECONDS] + $found;
+    }
 
-        return $found;
+    /**
+     * TEMP tables cannot have triggers. For other tables, absence is trustworthy only with trigger metadata access.
+     */
+    protected function canReportSuppliedKey(InsertStatement $insert): bool
+    {
+        $pdo = $this->pdo;
+        assert($pdo !== null);
+        $definition = $pdo->query('SHOW CREATE TABLE ' . $insert->qualifiedTable);
+        $row = $definition === false ? false : $definition->fetch(PDO::FETCH_NUM);
+        if (is_array($row) && preg_match('/^CREATE\s+TEMPORARY\s+TABLE\b/i', (string)$row[1]) === 1) {
+            return true;
+        }
+        $parts = preg_split('/\s*\.\s*/', $insert->qualifiedTable) ?: [$insert->qualifiedTable];
+        $schema = count($parts) > 1 ? trim($parts[count($parts) - 2], '`" ') : null;
+        // Privilege views quote the user and host separately. A hidden trigger must not be mistaken for no trigger.
+        $grantee = "CONCAT(CHAR(39), REPLACE(CURRENT_USER(), '@', CONCAT(CHAR(39), '@', CHAR(39))), CHAR(39))";
+        $statement = $pdo->prepare(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' "
+            . "UNION ALL SELECT 1 FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' AND TABLE_SCHEMA = COALESCE(?, DATABASE()) "
+            . "UNION ALL SELECT 1 FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' AND TABLE_SCHEMA = COALESCE(?, DATABASE()) AND TABLE_NAME = ?) AS can_inspect, "
+            . '(SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = COALESCE(?, DATABASE()) '
+            . "AND EVENT_OBJECT_TABLE = ? AND EVENT_MANIPULATION = 'INSERT' AND ACTION_TIMING = 'BEFORE') AS triggers"
+        );
+        $statement->execute([$schema, $schema, $insert->table, $schema, $insert->table]);
+        $access = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($access)) {
+            return false;
+        }
+        $access = array_change_key_case($access);
+
+        return (int)$access['can_inspect'] === 1 && (int)$access['triggers'] === 0;
     }
 
     public function doubleQuotedTextIsLiteral(): bool

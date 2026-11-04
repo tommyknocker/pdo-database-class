@@ -7,6 +7,7 @@ namespace tommyknocker\pdodb\dialects\mssql;
 use InvalidArgumentException;
 use PDO;
 use PDOException;
+use PDOStatement;
 use tommyknocker\pdodb\connection\ConnectionInterface;
 use tommyknocker\pdodb\dialects\catalog\CatalogQueriesInterface;
 use tommyknocker\pdodb\dialects\catalog\MssqlCatalogQueriesTrait;
@@ -15,12 +16,12 @@ use tommyknocker\pdodb\dialects\config\MSSQLConfigStrategy;
 use tommyknocker\pdodb\dialects\ConnectionInitHandler;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
 use tommyknocker\pdodb\dialects\roles\DialectParameterTypesInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
-use tommyknocker\pdodb\dialects\traits\InsertKeyCacheTrait;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
@@ -33,8 +34,6 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 
 class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectParameterTypesInterface
 {
-    use InsertKeyCacheTrait;
-
     use MssqlCatalogQueriesTrait;
 
     /**
@@ -48,12 +47,7 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, D
     }
 
     /**
-     * {@inheritDoc}
-     *
-     * The connection reports only IDENTITY values. For a table whose single-column primary key is something else (a
-     * UNIQUEIDENTIFIER filled by NEWID(), a text key) the key of the written row is asked for with
-     * `OUTPUT INSERTED.<key>`, placed before VALUES. A table with an enabled trigger cannot use a plain OUTPUT (error
-     * 334), so it keeps the connection's answer, as does an IDENTITY key.
+     * Read a non-identity primary key from the statement. Identity keys use the connection, including zero.
      */
     public function insertIdReturningSql(string $sql): ?string
     {
@@ -64,30 +58,63 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, D
         if ($insert === null || preg_match('/\bOUTPUT\b/i', substr($sql, 0, $insert->valuesOffset)) === 1) {
             return null;
         }
-        if ($this->recallConnectionKey($insert->qualifiedTable) !== null) {
+        $key = $this->insertKeyOf($insert);
+        if ($key === null || $key['identity'] || $key['triggers']) {
             return null;
         }
 
-        $statement = $this->pdo->prepare(
-            'SELECT c.name AS column_name, c.is_identity, '
-            . '(SELECT COUNT(*) FROM sys.triggers t WHERE t.parent_id = i.object_id AND t.is_disabled = 0) AS triggers '
-            . 'FROM sys.indexes i '
-            . 'JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id '
-            . 'JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id '
-            . 'WHERE i.object_id = OBJECT_ID(?) AND i.is_primary_key = 1'
-        );
-        $statement->execute([$insert->qualifiedTable]);
-        $key = $statement->fetchAll(PDO::FETCH_ASSOC);
-
-        if (count($key) !== 1 || (int)$key[0]['is_identity'] === 1 || (int)$key[0]['triggers'] > 0) {
-            $this->rememberConnectionKey($insert->qualifiedTable, count($key) === 1 ? (string)$key[0]['column_name'] : null);
-
-            return null;
-        }
-
-        return substr($sql, 0, $insert->valuesOffset) . 'OUTPUT INSERTED.' . $this->quoteIdentifier((string)$key[0]['column_name']) . ' '
+        return substr($sql, 0, $insert->valuesOffset) . 'OUTPUT INSERTED.' . $this->quoteIdentifier($key['column']) . ' '
             . substr($sql, $insert->valuesOffset);
     }
+
+    /**
+     * A connection-reported identity is useful only when it is this table's single-column primary key.
+     */
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|false|null
+    {
+        if ($this->pdo === null) {
+            return null;
+        }
+        $insert = InsertStatement::parse($sql);
+        if ($insert === null) {
+            return null;
+        }
+        $id = $this->pdo->lastInsertId();
+        $key = $this->insertKeyOf($insert);
+
+        return $key !== null && $key['identity'] ? (InsertId::normalize($id) ?? false) : false;
+    }
+
+    /**
+     * Read current metadata, including session TEMP tables, rather than caching a name across DDL or schema changes.
+     *
+     * @return array{column: string, identity: bool, triggers: bool}|null
+     */
+    protected function insertKeyOf(InsertStatement $insert): ?array
+    {
+        $pdo = $this->pdo;
+        assert($pdo !== null);
+        $temporary = str_starts_with($insert->table, '#');
+        $catalog = $temporary ? 'tempdb.sys' : 'sys';
+        $object = $temporary ? 'tempdb..' . $insert->table : $insert->qualifiedTable;
+        $statement = $pdo->prepare(
+            'SELECT c.name AS column_name, c.is_identity, '
+            . "(SELECT COUNT(*) FROM {$catalog}.triggers t WHERE t.parent_id = i.object_id AND t.is_disabled = 0) AS triggers "
+            . "FROM {$catalog}.indexes i "
+            . "JOIN {$catalog}.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id "
+            . "JOIN {$catalog}.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id "
+            . 'WHERE i.object_id = OBJECT_ID(?) AND i.is_primary_key = 1 AND ic.key_ordinal > 0'
+        );
+        $statement->execute([$object]);
+        $keys = $statement->fetchAll(PDO::FETCH_ASSOC);
+        if (count($keys) !== 1) {
+            return null;
+        }
+        $key = array_change_key_case($keys[0]);
+
+        return ['column' => (string)$key['column_name'], 'identity' => (int)$key['is_identity'] === 1, 'triggers' => (int)$key['triggers'] > 0];
+    }
+
     /** @var MSSQLFeatureSupport Feature support instance */
     private MSSQLFeatureSupport $featureSupport;
 

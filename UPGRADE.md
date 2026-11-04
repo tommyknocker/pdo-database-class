@@ -39,6 +39,11 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
       `int|string|null`: a string for a non-numeric key or an id beyond `PHP_INT_MAX`. `insertFrom()` and
       `replaceMulti()` return the number of affected rows. A custom dialect can opt in to `RETURNING` with
       `DialectInsertReturningInterface`.
+- [ ] **Custom insert-id hooks:** `extractInsertId()` may return `int|string|false|null`. A key of `0` is valid;
+      return `false` when no key can be reported and `null` to use the connection's `lastInsertId()` fallback.
+      Existing overrides returning `?int` or `int|string|null` remain type-compatible. On MySQL a supplied key that is
+      not AUTO_INCREMENT is reported as `null` when a BEFORE INSERT trigger may replace it or trigger metadata access
+      cannot be established.
 - [ ] MySQL `LOCAL INFILE` is off unless you pass `PDO\Mysql::ATTR_LOCAL_INFILE`.
 - [ ] CLI: unknown options exit with 2, failures print `Error: ...` and exit with 1 (`PDODB_DEBUG=1` for traces).
 - [ ] AI settings: one selected provider (`PDODB_AI_API_KEY`, `PDODB_AI_MODEL`).

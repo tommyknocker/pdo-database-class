@@ -244,7 +244,7 @@ class ExecutionEngine implements ExecutionEngineInterface
             try {
                 $key = $stmt->fetchColumn(); // false when no row was written (INSERT ... ON CONFLICT DO NOTHING)
 
-                return is_int($key) || is_string($key) || is_float($key) ? InsertId::from($key) : null;
+                return is_int($key) || is_string($key) || is_float($key) ? InsertId::normalize($key) : null;
             } finally {
                 $stmt->closeCursor();
             }
@@ -257,14 +257,16 @@ class ExecutionEngine implements ExecutionEngineInterface
                 return $stmt->rowCount();
             }
 
-            // The dialect answers when it can read the id itself: a positive id, 0 for "this row has none", null to ask PDO
+            // A key (including zero), false for no reportable key, or null to ask PDO.
             $id = $dialect->extractInsertId($stmt, $sql, $params);
             if ($id !== null) {
-                return InsertId::from($id);
+                return InsertId::normalize($id);
             }
 
             try {
-                return InsertId::from($this->connection->getLastInsertId());
+                $id = $this->connection->getLastInsertId();
+
+                return $id === '0' ? null : InsertId::normalize($id);
             } catch (PDOException) {
                 // PostgreSQL: lastval is not yet defined (no SERIAL column); Oracle: lastInsertId is not supported
                 return null;

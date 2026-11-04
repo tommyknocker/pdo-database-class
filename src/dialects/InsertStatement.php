@@ -114,10 +114,10 @@ final class InsertStatement
         $value = str_starts_with($expression, ':') ? ($params[$expression] ?? $params[substr($expression, 1)] ?? null) : $expression;
 
         if (is_int($value)) {
-            return InsertId::from($value);
+            return InsertId::normalize($value);
         }
 
-        return is_string($value) && preg_match('/^-?[0-9]+$/', trim($value)) === 1 ? InsertId::from(ltrim(trim($value), '+')) : null;
+        return is_string($value) && preg_match('/^-?[0-9]+$/', trim($value)) === 1 ? InsertId::normalize(ltrim(trim($value), '+')) : null;
     }
 
     /**
@@ -145,12 +145,12 @@ final class InsertStatement
         }
 
         if (is_int($value)) {
-            return InsertId::from($value);
+            return InsertId::normalize($value);
         }
         if (!is_string($value) || $value === '') {
             return null;
         }
 
-        return InsertId::from($value) ?? $value;
+        return InsertId::normalize($value) ?? $value;
     }
 }

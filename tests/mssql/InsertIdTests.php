@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mssql;
 
+use Psr\EventDispatcher\EventDispatcherInterface;
+use tommyknocker\pdodb\events\QueryExecutedEvent;
+
 /**
  * insert() reports the generated key, and null when the row has no numeric id.
  */
@@ -81,12 +84,71 @@ final class InsertIdTests extends BaseMSSQLTestCase
     public function testACompositeKeyHasNoSingleId(): void
     {
         self::$db->rawQuery("IF OBJECT_ID('insert_id_composite', 'U') IS NOT NULL DROP TABLE insert_id_composite");
-        self::$db->rawQuery('CREATE TABLE insert_id_composite (a INT, b INT, PRIMARY KEY (a, b))');
+        self::$db->rawQuery('CREATE TABLE insert_id_composite (a INT, b INT, counter INT IDENTITY(100,1), PRIMARY KEY (a, b))');
 
         try {
             $this->assertNull(self::$db->find()->table('insert_id_composite')->insert(['a' => 1, 'b' => 2]));
         } finally {
             self::$db->rawQuery("IF OBJECT_ID('insert_id_composite', 'U') IS NOT NULL DROP TABLE insert_id_composite");
+        }
+    }
+
+    public function testAnIdentityZeroIsReturnedAndIsNotAnAbsentId(): void
+    {
+        static::$db->rawQuery("IF OBJECT_ID('insert_id_zero', 'U') IS NOT NULL DROP TABLE insert_id_zero");
+        static::$db->rawQuery('CREATE TABLE insert_id_zero (id INT IDENTITY(0,1) PRIMARY KEY, note NVARCHAR(20))');
+
+        try {
+            $this->assertSame(0, static::$db->find()->table('insert_id_zero')->insert(['note' => 'zero']));
+            $this->assertSame(1, static::$db->find()->table('insert_id_zero')->insert(['note' => 'one']));
+        } finally {
+            static::$db->rawQuery("IF OBJECT_ID('insert_id_zero', 'U') IS NOT NULL DROP TABLE insert_id_zero");
+        }
+    }
+
+    public function testRecreatedTablesDoNotReuseIdentityMetadata(): void
+    {
+        $this->assertSame(1, static::$db->find()->table('insert_id_auto')->insert(['name' => 'before']));
+        static::$db->rawQuery('DROP TABLE insert_id_auto');
+        static::$db->rawQuery('CREATE TABLE insert_id_auto (slug NVARCHAR(20) PRIMARY KEY, counter INT IDENTITY(100,1))');
+        $this->assertSame('real-key', static::$db->find()->table('insert_id_auto')->insert(['slug' => 'real-key']));
+    }
+
+    public function testAnIdentityInsertKeepsItsAffectedRowCountInQueryEvents(): void
+    {
+        $dispatcher = new class () implements EventDispatcherInterface {
+            /** @var list<int> */
+            public array $affectedRows = [];
+
+            public function dispatch(object $event): object
+            {
+                if ($event instanceof QueryExecutedEvent) {
+                    $this->affectedRows[] = $event->getRowsAffected();
+                }
+
+                return $event;
+            }
+        };
+        static::$db->setEventDispatcher($dispatcher);
+
+        try {
+            $this->assertSame(1, static::$db->find()->table('insert_id_auto')->insert(['name' => 'one']));
+            $this->assertSame([1], $dispatcher->affectedRows);
+        } finally {
+            static::$db->setEventDispatcher(null);
+        }
+    }
+
+    public function testATemporaryTableReportsItsSingleKey(): void
+    {
+        // Preparing the DDL would create the TEMP table inside SQL Server's prepared-statement scope.
+        $pdo = static::$db->find()->getConnection()->getPdo();
+        $pdo->exec('CREATE TABLE #insert_key_temp (id INT PRIMARY KEY, note NVARCHAR(20))');
+
+        try {
+            $this->assertSame(77, static::$db->find()->table('#insert_key_temp')->insert(['id' => 77, 'note' => 'temp']));
+        } finally {
+            $pdo->exec('DROP TABLE #insert_key_temp');
         }
     }
 }

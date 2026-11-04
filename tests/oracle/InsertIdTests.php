@@ -220,4 +220,11 @@ final class InsertIdTests extends BaseOracleTestCase
 
         $this->assertNull(self::$db->find()->table('insert_id_composite')->insert(['b' => 7]));
     }
+
+    public function testASuppliedZeroKeyIsNotTheNoIdSentinel(): void
+    {
+        $this->createProbe();
+        $this->assertSame(0, static::$db->find()->table('insert_id_probe')->insert(['id' => 0, 'amount' => 1]));
+        $this->assertSame(0, (int)static::$db->rawQueryValue('SELECT id FROM insert_id_probe'));
+    }
 }

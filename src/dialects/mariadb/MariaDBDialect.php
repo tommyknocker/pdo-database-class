@@ -42,11 +42,7 @@ class MariaDBDialect extends MySQLFamilyDialect implements DialectInsertReturnin
         }
         $upsert = preg_match('/\bON\s+DUPLICATE\s+KEY\b/i', $insert->tail) === 1;
 
-        $primaryKey = $this->primaryKeyOf($insert, true);
-        if ($primaryKey['key'] !== null && !$primaryKey['autoIncrement']) {
-            // The column name goes into the SQL: look it up afresh, so an altered table cannot break the insert
-            $primaryKey = $this->primaryKeyOf($insert, false);
-        }
+        $primaryKey = $this->primaryKeyOf($insert);
         if ($primaryKey['key'] === null || ($primaryKey['autoIncrement'] && !$upsert)) {
             return null; // no single key, or a plain insert the connection answers
         }

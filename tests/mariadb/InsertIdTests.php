@@ -64,7 +64,7 @@ final class InsertIdTests extends BaseMariaDBTestCase
     public function testACompositeKeyHasNoSingleId(): void
     {
         self::$db->rawQuery('DROP TABLE IF EXISTS insert_id_composite');
-        self::$db->rawQuery('CREATE TABLE insert_id_composite (a INT, b INT, PRIMARY KEY (a, b))');
+        self::$db->rawQuery('CREATE TABLE insert_id_composite (a INT, b INT, counter INT AUTO_INCREMENT UNIQUE, PRIMARY KEY (a, b))');
 
         try {
             $this->assertNull(self::$db->find()->table('insert_id_composite')->insert(['a' => 1, 'b' => 2]));
@@ -119,5 +119,45 @@ final class InsertIdTests extends BaseMariaDBTestCase
     public function testAnUpsertThatInsertsReturnsItsKey(): void
     {
         $this->assertSame(7, self::$db->find()->table('insert_id_auto')->onDuplicate(['name'])->insert(['id' => 7, 'name' => 'fresh']));
+    }
+
+    public function testRenamingTheKeyDoesNotReuseItsOldColumnName(): void
+    {
+        static::$db->rawQuery('DROP TABLE IF EXISTS insert_id_mutable');
+        static::$db->rawQuery('CREATE TABLE insert_id_mutable (id INT PRIMARY KEY, note VARCHAR(20))');
+
+        try {
+            $this->assertSame(11, static::$db->find()->table('insert_id_mutable')->insert(['id' => 11, 'note' => 'before']));
+            static::$db->rawQuery('ALTER TABLE insert_id_mutable CHANGE id new_id INT NOT NULL, ADD id INT');
+            $this->assertSame(22, static::$db->find()->table('insert_id_mutable')->insert(['new_id' => 22, 'id' => 777, 'note' => 'after']));
+            static::$db->rawQuery('DROP TABLE insert_id_mutable');
+            static::$db->rawQuery('CREATE TABLE insert_id_mutable (slug VARCHAR(20) PRIMARY KEY, id INT)');
+            $this->assertSame('new-key', static::$db->find()->table('insert_id_mutable')->insert(['slug' => 'new-key', 'id' => 888]));
+        } finally {
+            static::$db->rawQuery('DROP TABLE IF EXISTS insert_id_mutable');
+        }
+    }
+
+    public function testATemporaryTableReportsItsOwnKeyWhileShadowingAnotherTable(): void
+    {
+        static::$db->rawQuery('DROP TABLE IF EXISTS insert_id_shadow');
+        static::$db->rawQuery('CREATE TABLE insert_id_shadow (id INT PRIMARY KEY, note VARCHAR(20))');
+
+        try {
+            $this->assertSame(11, static::$db->find()->table('insert_id_shadow')->insert(['id' => 11, 'note' => 'main']));
+            static::$db->rawQuery('CREATE TEMPORARY TABLE insert_id_shadow (slug VARCHAR(20) PRIMARY KEY, id INT)');
+            $this->assertSame('temp-key', static::$db->find()->table('insert_id_shadow')->insert(['slug' => 'temp-key', 'id' => 777]));
+            static::$db->rawQuery('DROP TEMPORARY TABLE insert_id_shadow');
+            $this->assertSame(22, static::$db->find()->table('insert_id_shadow')->insert(['id' => 22, 'note' => 'main again']));
+        } finally {
+            static::$db->rawQuery('DROP TEMPORARY TABLE IF EXISTS insert_id_shadow');
+            static::$db->rawQuery('DROP TABLE IF EXISTS insert_id_shadow');
+        }
+    }
+
+    public function testAZeroTextKeyIsReturnedRatherThanTreatedAsMissing(): void
+    {
+        $this->assertSame(0, static::$db->find()->table('insert_id_text')->insert(['id' => '0', 'amount' => 1]));
+        $this->assertSame('0', static::$db->rawQueryValue("SELECT id FROM insert_id_text WHERE id = '0'"));
     }
 }

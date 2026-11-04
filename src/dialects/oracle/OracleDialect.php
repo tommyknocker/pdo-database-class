@@ -23,6 +23,7 @@ use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\loaders\FileLoader;
 use tommyknocker\pdodb\dialects\loaders\OracleFileLoader;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
+use tommyknocker\pdodb\dialects\roles\DialectParameterTypesInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
 use tommyknocker\pdodb\exceptions\ResourceException;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -34,7 +35,7 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
+class OracleDialect extends DialectAbstract implements CatalogQueriesInterface, DialectParameterTypesInterface
 {
     use OracleCatalogQueriesTrait;
     /** @var OracleFeatureSupport Feature support instance */
@@ -55,6 +56,19 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
         $this->sqlFormatter = new OracleSqlFormatter($this);
         $this->dmlBuilder = new OracleDmlBuilder($this);
         $this->ddlBuilder = new OracleDdlBuilder($this);
+    }
+
+    /**
+     * Schema booleans use numeric columns, and pdo_oci disagrees about PARAM_BOOL: the build for PHP 8.4 binds `false` as NULL
+     * (a NOT NULL column rejects it, `= 0` matches nothing), the one for 8.5 as 0. A boolean is bound as the integer 0 or 1.
+     */
+    public function pdoParameterType(mixed $value): int
+    {
+        return match (true) {
+            $value === null => PDO::PARAM_NULL,
+            is_int($value), is_bool($value) => PDO::PARAM_INT,
+            default => PDO::PARAM_STR,
+        };
     }
 
     /**
@@ -437,10 +451,10 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
      *  - the value the insert supplied for that column, when it supplied one (the sequence was not used, so its
      *    CURRVAL would be the id of an earlier insert);
      *  - otherwise CURRVAL of the sequence, which is this session's value from the insert that just ran.
-     * 0 when the table has no such sequence (a UUID or composite key) or the key is not a number: there is no generated
+     * False when the table has no such sequence (a UUID or composite key) or the key is not a number: there is no generated
      * id to report.
      */
-    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|false|null
     {
         if ($this->pdo === null) {
             return null;
@@ -463,19 +477,19 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             }
             $sequences = $keyInfo['sequences'];
             if ($sequences === []) {
-                return 0;
+                return false;
             }
 
             $generated = null;
             foreach ($sequences as $candidate) {
                 if ($candidate['column'] !== null && $insert->positionOf($candidate['column']) !== null) {
                     // The caller chose the key: it is the id (the sequence was not used, so its CURRVAL is an older one)
-                    return $insert->suppliedId($candidate['column'], $params) ?? 0;
+                    return $insert->suppliedId($candidate['column'], $params) ?? false;
                 }
                 $generated ??= $candidate['sequence'];
             }
             if ($generated === null) {
-                return 0;
+                return false;
             }
 
             try {
@@ -483,7 +497,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
                 $id = $query === false ? false : $query->fetchColumn();
                 if (is_numeric($id)) {
                     // Kept exact: a NUMBER(28) key beyond PHP_INT_MAX comes back as a string, not clamped
-                    return InsertId::from($id) ?? 0;
+                    return InsertId::normalize($id) ?? false;
                 }
             } catch (PDOException) {
                 // sequence dropped, or not used in this session yet
@@ -491,7 +505,7 @@ class OracleDialect extends DialectAbstract implements CatalogQueriesInterface
             unset($this->keySequences[strtoupper($insert->table)]);
         }
 
-        return 0;
+        return false;
     }
 
     /**

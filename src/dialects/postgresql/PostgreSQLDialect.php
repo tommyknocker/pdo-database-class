@@ -2414,7 +2414,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
      * `ON CONFLICT DO NOTHING` has no id, and neither has a conflicting `DO UPDATE` unless the key was supplied: the
      * sequence advanced for the attempt, so `currval()` would name a row that does not exist.
      */
-    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|false|null
     {
         if ($this->pdo === null) {
             return null;
@@ -2425,8 +2425,8 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
             return null;
         }
 
-        // The row has no id to report. Answering 0 here, rather than null, keeps the caller from asking lastval()
-        $noId = 0;
+        // The row has no id to report. Answering false here, rather than null, keeps the caller from asking lastval()
+        $noId = false;
 
         if ($stmt->rowCount() === 0) {
             return $noId; // nothing was inserted (ON CONFLICT DO NOTHING)
@@ -2456,7 +2456,7 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
                 return $statement->fetchColumn();
             });
             if (is_string($id) || is_int($id)) {
-                return InsertId::from($id) ?? $noId;
+                return InsertId::normalize($id) ?? $noId;
             }
             unset($this->keySequences[$insert->qualifiedTable]);
         }

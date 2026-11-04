@@ -39,10 +39,10 @@ trait DmlDefaults
      * @param string $sql The SQL query that was executed
      * @param array<string, string|int|float|bool|null> $params The parameters that were used
      *
-     * @return int|string|null The inserted ID (a string when it does not fit an int), 0 when the row has no generated id,
-     *                         or null to use lastInsertId()
+     * @return int|string|false|null The inserted ID (a string when it does not fit an int), false when no key can be reported,
+     *                               or null to use lastInsertId()
      */
-    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|false|null
     {
         return null;
     }

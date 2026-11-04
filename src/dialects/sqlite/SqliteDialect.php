@@ -50,7 +50,7 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface, 
      *  - a table whose key is text, composite or absent has no integer id (its rowid is an internal detail);
      *  - an upsert whose conflict branch updated the row leaves the last rowid alone: only a supplied key is an id.
      */
-    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|null
+    public function extractInsertId(PDOStatement $stmt, string $sql, array $params): int|string|false|null
     {
         if ($this->pdo === null) {
             return null;
@@ -61,18 +61,18 @@ class SqliteDialect extends DialectAbstract implements CatalogQueriesInterface, 
             return null;
         }
         if ($stmt->rowCount() === 0) {
-            return 0;
+            return false;
         }
 
         $table = $this->rowidKeyOf($insert->table);
         if ($table['key'] === null) {
-            return 0;
+            return false;
         }
         if ($insert->positionOf($table['key']) !== null) {
-            return $insert->suppliedId($table['key'], $params) ?? 0;
+            return $insert->suppliedId($table['key'], $params) ?? false;
         }
         if ($table['withoutRowid'] || preg_match('/\bON\s+CONFLICT\b/i', $insert->tail) === 1) {
-            return 0;
+            return false;
         }
 
         return null; // a plain INSERT: PDO::lastInsertId() is this row's rowid

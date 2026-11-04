@@ -99,4 +99,13 @@ final class InsertIdTests extends BaseSqliteTestCase
 
         $this->assertSame('temp-a', self::$db->find()->table('shadowed')->insert(['temp_key' => 'temp-a', 'note' => 'a']));
     }
+
+    public function testZeroAndNegativeKeysAreNotAbsenceSentinels(): void
+    {
+        foreach ([-1, 0, 1] as $key) {
+            $this->assertSame($key, static::$db->find()->table('ids_int')->insert(['id' => $key, 'name' => 'key' . $key]));
+            $this->assertSame($key, static::$db->find()->table('ids_text')->insert(['id' => (string)$key, 'name' => 'key' . $key]));
+        }
+        $this->assertSame(4, (int)static::$db->find()->from('ids_int')->select('COUNT(*)')->getValue());
+    }
 }
