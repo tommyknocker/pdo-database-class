@@ -19,6 +19,8 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\FeatureSupportInterface;
 use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
+use tommyknocker\pdodb\dialects\roles\DialectMetadataMemoInterface;
+use tommyknocker\pdodb\dialects\traits\MetadataMemoTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
 use tommyknocker\pdodb\PdoDb;
@@ -29,8 +31,9 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 /**
  * Behaviour shared by MySQL and MariaDB. Engine differences live in the subclasses.
  */
-abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQueriesInterface
+abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQueriesInterface, DialectMetadataMemoInterface
 {
+    use MetadataMemoTrait;
     use MySqlCatalogQueriesTrait;
     /**
      * Report the primary key of the written row. False means no key can be reported; zero is a real key.
@@ -69,60 +72,65 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
     }
 
     /**
-     * Resolve the table as the INSERT does, including TEMP shadowing, on every lookup.
-     * Metadata is deliberately not cached across arbitrary DDL.
+     * Resolve the table as the INSERT does, including TEMP shadowing. Remembered for the connection and dropped by
+     * {@see forgetMetadata()} when this connection runs DDL, so a renamed or recreated table is read again.
      *
      * @return array{key: ?string, autoIncrement: bool}
      */
     protected function primaryKeyOf(InsertStatement $insert): array
     {
-        $pdo = $this->pdo;
-        assert($pdo !== null);
-        $statement = $pdo->query('SHOW COLUMNS FROM ' . $insert->qualifiedTable);
-        $keys = [];
-        foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $column = array_change_key_case($row);
-            if (strtoupper((string)$column['key']) === 'PRI') {
-                $keys[] = $column;
+        return $this->remembered('pk:' . strtolower($insert->qualifiedTable), function () use ($insert): array {
+            $pdo = $this->pdo;
+            assert($pdo !== null);
+            $statement = $pdo->query('SHOW COLUMNS FROM ' . $insert->qualifiedTable);
+            $keys = [];
+            foreach ($statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $column = array_change_key_case($row);
+                if (strtoupper((string)$column['key']) === 'PRI') {
+                    $keys[] = $column;
+                }
             }
-        }
 
-        return count($keys) === 1
-            ? ['key' => (string)$keys[0]['field'], 'autoIncrement' => stripos((string)$keys[0]['extra'], 'auto_increment') !== false]
-            : ['key' => null, 'autoIncrement' => false];
+            return count($keys) === 1
+                ? ['key' => (string)$keys[0]['field'], 'autoIncrement' => stripos((string)$keys[0]['extra'], 'auto_increment') !== false]
+                : ['key' => null, 'autoIncrement' => false];
+        });
     }
 
     /**
      * TEMP tables cannot have triggers. For other tables, absence is trustworthy only with trigger metadata access.
+     * Remembered like {@see primaryKeyOf()}; CREATE TRIGGER, DROP and GRANT on this connection drop it.
      */
     protected function canReportSuppliedKey(InsertStatement $insert): bool
     {
-        $pdo = $this->pdo;
-        assert($pdo !== null);
-        $definition = $pdo->query('SHOW CREATE TABLE ' . $insert->qualifiedTable);
-        $row = $definition === false ? false : $definition->fetch(PDO::FETCH_NUM);
-        if (is_array($row) && preg_match('/^CREATE\s+TEMPORARY\s+TABLE\b/i', (string)$row[1]) === 1) {
-            return true;
-        }
-        $parts = preg_split('/\s*\.\s*/', $insert->qualifiedTable) ?: [$insert->qualifiedTable];
-        $schema = count($parts) > 1 ? trim($parts[count($parts) - 2], '`" ') : null;
-        // Privilege views quote the user and host separately. A hidden trigger must not be mistaken for no trigger.
-        $grantee = "CONCAT(CHAR(39), REPLACE(CURRENT_USER(), '@', CONCAT(CHAR(39), '@', CHAR(39))), CHAR(39))";
-        $statement = $pdo->prepare(
-            "SELECT EXISTS (SELECT 1 FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' "
-            . "UNION ALL SELECT 1 FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' AND TABLE_SCHEMA = COALESCE(?, DATABASE()) "
-            . "UNION ALL SELECT 1 FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' AND TABLE_SCHEMA = COALESCE(?, DATABASE()) AND TABLE_NAME = ?) AS can_inspect, "
-            . '(SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = COALESCE(?, DATABASE()) '
-            . "AND EVENT_OBJECT_TABLE = ? AND EVENT_MANIPULATION = 'INSERT' AND ACTION_TIMING = 'BEFORE') AS triggers"
-        );
-        $statement->execute([$schema, $schema, $insert->table, $schema, $insert->table]);
-        $access = $statement->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($access)) {
-            return false;
-        }
-        $access = array_change_key_case($access);
+        return $this->remembered('supplied:' . strtolower($insert->qualifiedTable), function () use ($insert): bool {
+            $pdo = $this->pdo;
+            assert($pdo !== null);
+            $definition = $pdo->query('SHOW CREATE TABLE ' . $insert->qualifiedTable);
+            $row = $definition === false ? false : $definition->fetch(PDO::FETCH_NUM);
+            if (is_array($row) && preg_match('/^CREATE\s+TEMPORARY\s+TABLE\b/i', (string)$row[1]) === 1) {
+                return true;
+            }
+            $parts = preg_split('/\s*\.\s*/', $insert->qualifiedTable) ?: [$insert->qualifiedTable];
+            $schema = count($parts) > 1 ? trim($parts[count($parts) - 2], '`" ') : null;
+            // Privilege views quote the user and host separately. A hidden trigger must not be mistaken for no trigger.
+            $grantee = "CONCAT(CHAR(39), REPLACE(CURRENT_USER(), '@', CONCAT(CHAR(39), '@', CHAR(39))), CHAR(39))";
+            $statement = $pdo->prepare(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' "
+                . "UNION ALL SELECT 1 FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' AND TABLE_SCHEMA = COALESCE(?, DATABASE()) "
+                . "UNION ALL SELECT 1 FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = {$grantee} AND PRIVILEGE_TYPE = 'TRIGGER' AND TABLE_SCHEMA = COALESCE(?, DATABASE()) AND TABLE_NAME = ?) AS can_inspect, "
+                . '(SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = COALESCE(?, DATABASE()) '
+                . "AND EVENT_OBJECT_TABLE = ? AND EVENT_MANIPULATION = 'INSERT' AND ACTION_TIMING = 'BEFORE') AS triggers"
+            );
+            $statement->execute([$schema, $schema, $insert->table, $schema, $insert->table]);
+            $access = $statement->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($access)) {
+                return false;
+            }
+            $access = array_change_key_case($access);
 
-        return (int)$access['can_inspect'] === 1 && (int)$access['triggers'] === 0;
+            return (int)$access['can_inspect'] === 1 && (int)$access['triggers'] === 0;
+        });
     }
 
     public function doubleQuotedTextIsLiteral(): bool

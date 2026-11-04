@@ -11,6 +11,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use tommyknocker\pdodb\dialects\DialectAbstract;
 use tommyknocker\pdodb\dialects\DialectInterface;
+use tommyknocker\pdodb\dialects\roles\DialectMetadataMemoInterface;
 use tommyknocker\pdodb\dialects\roles\DialectParameterTypesInterface;
 use tommyknocker\pdodb\events\ConnectionClosedEvent;
 use tommyknocker\pdodb\events\QueryBeforeExecuteEvent;
@@ -353,6 +354,21 @@ class Connection implements ConnectionInterface
     }
 
     /**
+     * Tell a dialect that remembers table metadata when a statement may have changed it: DDL, GRANT/REVOKE (trigger and
+     * key visibility) and USE (the same table name is another table). It looks at the start of each statement, so a
+     * script of several statements is covered; a change made by another session is not seen.
+     */
+    protected function forgetMetadataAfter(string $sql): void
+    {
+        if (
+            $this->dialect instanceof DialectMetadataMemoInterface
+            && preg_match('/(?:^|;)\s*(?:(?:\/\*.*?\*\/|--[^\n]*\n)\s*)*(?:CREATE|ALTER|DROP|RENAME|GRANT|REVOKE|USE)\b/is', $sql) === 1
+        ) {
+            $this->dialect->forgetMetadata();
+        }
+    }
+
+    /**
      * Bind each value with its own PDO type. `PDOStatement::execute($params)` sends everything as a string: SQLite then
      * compares the text '1' with the integer 1 of a column that has no declared type (a CTE or derived table) and finds
      * nothing, and `false` becomes '' (PostgreSQL rejects it, SQLite and Oracle do not match 0).
@@ -427,6 +443,7 @@ class Connection implements ConnectionInterface
         try {
             $this->bindParameters($stmt, $params);
             $this->state->setExecuteState($stmt->execute());
+            $this->forgetMetadataAfter($stmt->queryString);
             $this->state->setLastQuery($stmt->queryString);
             $executionTime = (microtime(true) - $startTime) * 1000; // milliseconds
             $rowsAffected = $stmt->rowCount();
@@ -493,6 +510,7 @@ class Connection implements ConnectionInterface
 
         try {
             $stmt = $this->pdo->query($sql);
+            $this->forgetMetadataAfter($sql);
             if ($stmt !== false) {
                 $executionTime = (microtime(true) - $startTime) * 1000; // milliseconds
                 $rowsAffected = $stmt->rowCount();
@@ -583,6 +601,9 @@ class Connection implements ConnectionInterface
         try {
             $startTime = microtime(true);
             $res = $this->pdo->rollBack();
+            if ($this->dialect instanceof DialectMetadataMemoInterface) {
+                $this->dialect->forgetMetadata(); // DDL that was rolled back leaves the table as it was
+            }
             if ($res) {
                 $duration = (microtime(true) - $startTime) * 1000; // milliseconds
                 $this->dispatch(new TransactionRolledBackEvent($this->getDriverName(), $duration));

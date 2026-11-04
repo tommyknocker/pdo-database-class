@@ -20,8 +20,10 @@ use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
+use tommyknocker\pdodb\dialects\roles\DialectMetadataMemoInterface;
 use tommyknocker\pdodb\dialects\roles\DialectParameterTypesInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
+use tommyknocker\pdodb\dialects\traits\MetadataMemoTrait;
 use tommyknocker\pdodb\helpers\values\ConcatValue;
 use tommyknocker\pdodb\helpers\values\RawValue;
 use tommyknocker\pdodb\outbox\claim\OutboxClaimStrategy;
@@ -32,8 +34,9 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectParameterTypesInterface
+class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface
 {
+    use MetadataMemoTrait;
     use MssqlCatalogQueriesTrait;
 
     /**
@@ -86,33 +89,36 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, D
     }
 
     /**
-     * Read current metadata, including session TEMP tables, rather than caching a name across DDL or schema changes.
+     * Read the table's key metadata, including session TEMP tables. Remembered for the connection and dropped by
+     * {@see forgetMetadata()} when this connection runs DDL, so a renamed or recreated table is read again.
      *
      * @return array{column: string, identity: bool, triggers: bool}|null
      */
     protected function insertKeyOf(InsertStatement $insert): ?array
     {
-        $pdo = $this->pdo;
-        assert($pdo !== null);
-        $temporary = str_starts_with($insert->table, '#');
-        $catalog = $temporary ? 'tempdb.sys' : 'sys';
-        $object = $temporary ? 'tempdb..' . $insert->table : $insert->qualifiedTable;
-        $statement = $pdo->prepare(
-            'SELECT c.name AS column_name, c.is_identity, '
-            . "(SELECT COUNT(*) FROM {$catalog}.triggers t WHERE t.parent_id = i.object_id AND t.is_disabled = 0) AS triggers "
-            . "FROM {$catalog}.indexes i "
-            . "JOIN {$catalog}.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id "
-            . "JOIN {$catalog}.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id "
-            . 'WHERE i.object_id = OBJECT_ID(?) AND i.is_primary_key = 1 AND ic.key_ordinal > 0'
-        );
-        $statement->execute([$object]);
-        $keys = $statement->fetchAll(PDO::FETCH_ASSOC);
-        if (count($keys) !== 1) {
-            return null;
-        }
-        $key = array_change_key_case($keys[0]);
+        return $this->remembered('key:' . strtolower($insert->qualifiedTable), function () use ($insert): ?array {
+            $pdo = $this->pdo;
+            assert($pdo !== null);
+            $temporary = str_starts_with($insert->table, '#');
+            $catalog = $temporary ? 'tempdb.sys' : 'sys';
+            $object = $temporary ? 'tempdb..' . $insert->table : $insert->qualifiedTable;
+            $statement = $pdo->prepare(
+                'SELECT c.name AS column_name, c.is_identity, '
+                . "(SELECT COUNT(*) FROM {$catalog}.triggers t WHERE t.parent_id = i.object_id AND t.is_disabled = 0) AS triggers "
+                . "FROM {$catalog}.indexes i "
+                . "JOIN {$catalog}.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id "
+                . "JOIN {$catalog}.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id "
+                . 'WHERE i.object_id = OBJECT_ID(?) AND i.is_primary_key = 1 AND ic.key_ordinal > 0'
+            );
+            $statement->execute([$object]);
+            $keys = $statement->fetchAll(PDO::FETCH_ASSOC);
+            if (count($keys) !== 1) {
+                return null;
+            }
+            $key = array_change_key_case($keys[0]);
 
-        return ['column' => (string)$key['column_name'], 'identity' => (int)$key['is_identity'] === 1, 'triggers' => (int)$key['triggers'] > 0];
+            return ['column' => (string)$key['column_name'], 'identity' => (int)$key['is_identity'] === 1, 'triggers' => (int)$key['triggers'] > 0];
+        });
     }
 
     /** @var MSSQLFeatureSupport Feature support instance */

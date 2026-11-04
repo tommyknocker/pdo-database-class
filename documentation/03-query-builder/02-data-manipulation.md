@@ -722,9 +722,11 @@ is `null` when such a trigger is present, because MySQL cannot return the row's 
 the connection account's metadata visibility. If trigger metadata access cannot be established, the result is also
 `null`; the insert itself still succeeds. MariaDB 10.5+ reads non-auto-increment keys with `RETURNING`, including keys changed by triggers.
 
-MySQL/MariaDB resolve key metadata with `SHOW COLUMNS` for each lookup, so TEMP shadowing and arbitrary table changes
-are observed immediately. SQL Server also reads current key metadata. This adds metadata round trips rather than
-keeping a potentially stale key cache. Custom dialect hooks return a key (including `0`), `false` for no reportable
+MySQL, MariaDB and SQL Server learn a table's key once per connection (`SHOW COLUMNS`, the trigger check, the catalog
+views) and remember it, so repeated inserts cost no extra round trips. The memory is dropped when this connection runs
+`CREATE`, `ALTER`, `DROP`, `RENAME`, `GRANT`, `REVOKE` or `USE` (also through `rawQuery()`, a migration or a TEMP
+table of the same name), and when a transaction is rolled back. A change made by another session or a script is not
+seen until then, or until the connection is opened again. Custom dialect hooks return a key (including `0`), `false` for no reportable
 key, or `null` to request the connection fallback; see [UPGRADE.md](../../UPGRADE.md).
 
 `insertFrom()`, `insertMulti()` and `replaceMulti()` return the number of rows the statement affected, counted as the database counts them (MySQL counts a replaced row twice).
