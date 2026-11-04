@@ -14,12 +14,13 @@ use tommyknocker\pdodb\PdoDb;
 final class RegexpSemanticsSupport
 {
     /** @var list<string> */
-    public const VALUES = ['abc', 'xabcx', 'a.c', 'a1c', 'abcabc', 'a-c', '50%_off', 'user@example.com', '2024-05-17', 'plain', 'x[1]'];
+    public const VALUES = ['abc', 'xabcx', 'a.c', 'a1c', 'abcabc', 'a-c', '50%_off', 'user@example.com', '2024-05-17', 'plain', 'x[1]', 'path/to', 'a/b'];
 
     /** @var list<string> */
     public const PATTERNS = [
         'abc', '^abc', 'abc$', '^abc$', 'a.c', '^a.c$', 'a\.c', 'a.*c', '^a.*c$', 'a.+c', '[ab]c', '^[a-x]', '[^a-z]',
         '\d', '^\d\d\d\d-\d\d-\d\d$', '@', 'e.*e', '50%', '_off', '\[1\]', '^$', 'user@.*\.com$',
+        '/', '^path/', 'a/b$',
     ];
 
     /**
@@ -73,6 +74,7 @@ final class RegexpSemanticsSupport
             $db->find()->table('regexp_semantics')->insert(['id' => 1, 'txt' => 'abcabc']);
             $db->find()->table('regexp_semantics')->insert(['id' => 2, 'txt' => '2024-05-17']);
             $db->find()->table('regexp_semantics')->insert(['id' => 3, 'txt' => "it's 50%"]);
+            $db->find()->table('regexp_semantics')->insert(['id' => 4, 'txt' => 'dir/sub/file']);
 
             $cases = [
                 'replace b on abcabc' => [1, Db::regexpReplace('txt', 'b', '_'), 'a_ca_c'],
@@ -81,6 +83,8 @@ final class RegexpSemanticsSupport
                 'replace percent' => [3, Db::regexpReplace('txt', '%', ' percent'), "it's 50 percent"],
                 'extract bc' => [1, Db::regexpExtract('txt', 'bc'), 'bc'],
                 'extract dash' => [2, Db::regexpExtract('txt', '-'), '-'],
+                'replace slash' => [4, Db::regexpReplace('txt', '/', '-'), 'dir-sub-file'],
+                'extract after slash' => [4, Db::regexpExtract('txt', '/sub'), '/sub'],
             ];
 
             $result = [];

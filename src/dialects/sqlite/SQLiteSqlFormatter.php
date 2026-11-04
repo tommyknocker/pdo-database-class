@@ -6,6 +6,7 @@ namespace tommyknocker\pdodb\dialects\sqlite;
 
 use Pdo\Sqlite;
 use tommyknocker\pdodb\dialects\formatters\SqlFormatterAbstract;
+use tommyknocker\pdodb\exceptions\QueryException;
 use tommyknocker\pdodb\exceptions\UnsupportedOperationException;
 use tommyknocker\pdodb\helpers\values\RawValue;
 
@@ -680,6 +681,36 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
+     * Run a PCRE function with a database pattern. Database patterns carry no delimiters, so a `/` in them is a literal
+     * slash: an unescaped one is escaped here, one that is already escaped (`\/`) is left alone.
+     *
+     * An invalid pattern throws a QueryException, as the other databases do. A PHP warning with a silent "no match" would
+     * make `NOT REGEXP` select every row and `regexp_replace()` return an empty string.
+     *
+     * @param callable(string): (int|string|false|null) $run Receives the delimited pattern; false or null is PCRE's failure
+     */
+    protected static function pcre(string $pattern, callable $run): int|string
+    {
+        $message = null;
+        set_error_handler(static function (int $level, string $text) use (&$message): bool {
+            $message = preg_replace('/^preg_\w+\(\): /', '', $text);
+
+            return true;
+        });
+
+        try {
+            $result = $run('/' . preg_replace('~(?<!\\\\)((?:\\\\\\\\)*)/~', '$1\\/', $pattern) . '/');
+        } finally {
+            restore_error_handler();
+        }
+        if ($result === false || $result === null) {
+            throw new QueryException("Invalid regular expression '{$pattern}': " . ($message ?? preg_last_error_msg()), 0, null, 'sqlite');
+        }
+
+        return $result;
+    }
+
+    /**
      * Register REGEXP functions for SQLite using PHP's preg_* functions.
      * This method registers REGEXP, regexp_replace, and regexp_extract functions
      * if they are not already available.
@@ -714,18 +745,20 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
         // When SQLite sees "subject REGEXP pattern", it calls regexp(pattern, subject)
         // So we register it as regexp(pattern, subject)
         $registerFunction('regexp', function (string $pattern, string $subject): int {
-            return preg_match("/$pattern/", $subject) ? 1 : 0;
+            return static::pcre($pattern, static fn (string $regex): int|false => preg_match($regex, $subject)) === 1 ? 1 : 0;
         }, 2);
 
         // Register regexp_replace function (3 arguments: subject, pattern, replacement)
         $registerFunction('regexp_replace', function (string $subject, string $pattern, string $replacement): string {
-            $result = preg_replace("/$pattern/", $replacement, $subject);
-            return $result ?? '';
+            return (string)static::pcre($pattern, static fn (string $regex): ?string => preg_replace($regex, $replacement, $subject));
         }, 3);
 
         // Register regexp_extract function (3 arguments: subject, pattern, groupIndex)
         $registerFunction('regexp_extract', function (string $subject, string $pattern, int $groupIndex = 0): string {
-            if (preg_match("/$pattern/", $subject, $matches)) {
+            $matches = [];
+            if (static::pcre($pattern, static function (string $regex) use ($subject, &$matches): int|false {
+                return preg_match($regex, $subject, $matches);
+            }) === 1) {
                 $index = (int)$groupIndex;
                 return (string)($matches[$index] ?? '');
             }
