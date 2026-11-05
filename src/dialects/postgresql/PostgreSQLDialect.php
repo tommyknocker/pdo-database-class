@@ -21,7 +21,7 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
-use tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface;
+use tommyknocker\pdodb\dialects\roles\DialectJsonTypedComparisonInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
 use tommyknocker\pdodb\dialects\traits\OnConflictUpsertTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -32,7 +32,7 @@ use tommyknocker\pdodb\query\analysis\parsers\PostgreSQLExplainParser;
 use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface
+class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonTypedComparisonInterface
 {
     use OnConflictUpsertTrait;
 
@@ -602,6 +602,14 @@ class PostgreSQLDialect extends DialectAbstract implements CatalogQueriesInterfa
     public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
     {
         return $this->sqlFormatter->formatJsonNumberComparison($col, $path, $operator, $placeholder);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        return $this->sqlFormatter->formatJsonBooleanComparison($col, $path, $operator, $placeholder);
     }
 
     /**

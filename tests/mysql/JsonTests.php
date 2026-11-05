@@ -14,7 +14,7 @@ final class JsonTests extends BaseMySQLTestCase
 {
     use JsonNumberComparisonScenarios;
 
-    protected function numericStringsAreNumbers(): bool
+    protected function textScalarsAreTyped(): bool
     {
         return false;
     }

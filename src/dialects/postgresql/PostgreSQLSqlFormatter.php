@@ -79,6 +79,20 @@ class PostgreSQLSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
+     * The condition "<boolean at the path> <operator> <placeholder>"; NULL for a value that is not a JSON boolean.
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $column = $this->quoteIdentifier($col);
+        $array = $this->buildPostgreSqlJsonPath($parts);
+
+        return "CASE WHEN jsonb_typeof({$column}::jsonb #> {$array}) = 'boolean' THEN ({$column} #>> {$array})::boolean END {$operator} {$placeholder}";
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string

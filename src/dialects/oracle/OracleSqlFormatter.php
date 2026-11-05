@@ -139,6 +139,19 @@ class OracleSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
+     * The condition "<boolean at the path> <operator> <placeholder>"; NULL for a value that is not a JSON boolean (a string "true" counts as a boolean: JSON_VALUE returns both as text).
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $value = 'JSON_VALUE(' . $this->quoteIdentifier($col) . ", '" . $this->buildJsonPathString($parts) . "')";
+
+        return "CASE {$value} WHEN 'true' THEN 1 WHEN 'false' THEN 0 END {$operator} {$placeholder}";
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string

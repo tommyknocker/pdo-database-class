@@ -56,7 +56,21 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
     {
         $value = 'JSON_VALUE(' . $this->quoteIdentifier($col) . ", '" . $this->buildJsonPathString($this->normalizeJsonPath($path)) . "')";
 
-        return "TRY_CAST({$value} AS DECIMAL(38,10)) {$operator} {$placeholder}";
+        // DECIMAL(38,18) keeps a 64-bit integer exact and a fraction down to 1e-18; a number it cannot hold is NULL, not clamped
+        return "TRY_CAST({$value} AS DECIMAL(38,18)) {$operator} {$placeholder}";
+    }
+
+    /**
+     * The condition "<boolean at the path> <operator> <placeholder>"; NULL for a value that is not a JSON boolean (a string "true" counts as a boolean: JSON_VALUE returns both as text).
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $value = 'JSON_VALUE(' . $this->quoteIdentifier($col) . ", '" . $this->buildJsonPathString($parts) . "')";
+
+        return "CASE {$value} WHEN 'true' THEN 1 WHEN 'false' THEN 0 END {$operator} {$placeholder}";
     }
 
     /**

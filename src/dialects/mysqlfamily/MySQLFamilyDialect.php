@@ -19,7 +19,7 @@ use tommyknocker\pdodb\dialects\DialectInterface;
 use tommyknocker\pdodb\dialects\FeatureSupportInterface;
 use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
-use tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface;
+use tommyknocker\pdodb\dialects\roles\DialectJsonTypedComparisonInterface;
 use tommyknocker\pdodb\dialects\roles\DialectMetadataMemoInterface;
 use tommyknocker\pdodb\dialects\traits\MetadataMemoTrait;
 use tommyknocker\pdodb\helpers\values\RawValue;
@@ -32,7 +32,7 @@ use tommyknocker\pdodb\query\schema\ColumnSchema;
 /**
  * Behaviour shared by MySQL and MariaDB. Engine differences live in the subclasses.
  */
-abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQueriesInterface, DialectJsonNumberComparisonInterface, DialectMetadataMemoInterface
+abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQueriesInterface, DialectJsonTypedComparisonInterface, DialectMetadataMemoInterface
 {
     use MetadataMemoTrait;
     use MySqlCatalogQueriesTrait;
@@ -552,6 +552,14 @@ abstract class MySQLFamilyDialect extends DialectAbstract implements CatalogQuer
     public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
     {
         return $this->sqlFormatter->formatJsonNumberComparison($col, $path, $operator, $placeholder);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        return $this->sqlFormatter->formatJsonBooleanComparison($col, $path, $operator, $placeholder);
     }
 
     /**

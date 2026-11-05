@@ -8,8 +8,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use tommyknocker\pdodb\helpers\Db;
 
 /**
- * A number given to whereJsonPath() / Db::jsonPath() is compared with the JSON value as a number. A JSON value was read as
- * text, so `age > 27` was `'5' > '27'` and returned the row with 5.
+ * A number or a boolean given to whereJsonPath() / Db::jsonPath() is compared with the JSON value as that type. A JSON value
+ * was read as text, so `age > 27` was `'5' > '27'` and returned the row with 5, and `ok = true` matched the number 1.
  *
  * Used by the per-dialect JsonTests, which provide `self::$db` and the DDL of a table with a JSON document column.
  */
@@ -18,8 +18,8 @@ trait JsonNumberComparisonScenarios
     /** CREATE TABLE json_number_cmp (id <integer> primary key, data <JSON document column>) */
     abstract protected function createJsonNumberTableSql(): string;
 
-    /** Whether a JSON string that holds a number ("30") is a number to the comparison (SQL Server and Oracle: yes) */
-    abstract protected function numericStringsAreNumbers(): bool;
+    /** Whether a JSON string that holds a number ("30") or a boolean ("true") has that type in a comparison (SQL Server and Oracle: yes) */
+    abstract protected function textScalarsAreTyped(): bool;
 
     /** @var array<int, string> */
     private const array NUMBER_DOCUMENTS = [
@@ -51,11 +51,14 @@ trait JsonNumberComparisonScenarios
         ];
     }
 
-    private function prepareJsonNumberTable(): void
+    /**
+     * @param array<int, string>|null $documents
+     */
+    private function prepareJsonNumberTable(?array $documents = null): void
     {
         self::$db->schema()->dropTableIfExists('json_number_cmp');
         self::$db->rawQuery($this->createJsonNumberTableSql());
-        foreach (self::NUMBER_DOCUMENTS as $id => $document) {
+        foreach ($documents ?? self::NUMBER_DOCUMENTS as $id => $document) {
             self::$db->find()->table('json_number_cmp')->insert(['id' => $id, 'data' => $document]);
         }
     }
@@ -124,13 +127,107 @@ trait JsonNumberComparisonScenarios
         }
     }
 
+    /** @var array<int, string> */
+    private const array BOOLEAN_DOCUMENTS = [
+        1 => '{"ok":true,"p":{"ok":true}}',
+        2 => '{"ok":false,"p":{"ok":false}}',
+        3 => '{"ok":1,"p":{"ok":1}}',
+        4 => '{"ok":0,"p":{"ok":0}}',
+        5 => '{"ok":null,"p":{"ok":null}}',
+        6 => '{"x":1}',
+        7 => '{"ok":"yes","p":{"ok":"yes"}}',
+    ];
+
+    /**
+     * @return array<string, array{0: string, 1: bool, 2: list<int>}> operator, value, ids that match
+     */
+    public static function booleanComparisons(): array
+    {
+        return [
+            'equal to true' => ['=', true, [1]],
+            'equal to false' => ['=', false, [2]],
+            'not equal to true' => ['!=', true, [2]],
+            'not equal to false' => ['!=', false, [1]],
+        ];
+    }
+
+    /**
+     * @param list<int> $expected
+     */
+    #[DataProvider('booleanComparisons')]
+    public function testAJsonValueIsComparedWithABooleanAsABoolean(string $operator, bool $value, array $expected): void
+    {
+        $this->prepareJsonNumberTable(self::BOOLEAN_DOCUMENTS);
+
+        try {
+            foreach (['ok' => ['ok'], 'nested' => ['p', 'ok']] as $label => $path) {
+                $byMethod = self::$db->find()->from('json_number_cmp')->whereJsonPath('data', $path, $operator, $value)->get();
+                $byHelper = self::$db->find()->from('json_number_cmp')->where(Db::jsonPath('data', $path, $operator, $value))->get();
+
+                $this->assertSame($expected, $this->jsonNumberIds($byMethod), "whereJsonPath, {$label}");
+                $this->assertSame($expected, $this->jsonNumberIds($byHelper), "Db::jsonPath, {$label}");
+            }
+        } finally {
+            self::$db->schema()->dropTableIfExists('json_number_cmp');
+        }
+    }
+
+    public function testABooleanConditionDoesNotFailOnValuesThatAreNotBooleans(): void
+    {
+        $this->prepareJsonNumberTable(self::BOOLEAN_DOCUMENTS);
+
+        try {
+            $affected = self::$db->find()->table('json_number_cmp')->whereJsonPath('data', ['ok'], '=', true)->update(['id' => Db::raw('id + 1000')]);
+
+            $this->assertSame(1, $affected);
+            $this->assertSame([2, 3, 4, 5, 6, 7, 1001], $this->jsonNumberIds(self::$db->find()->from('json_number_cmp')->get()));
+        } finally {
+            self::$db->schema()->dropTableIfExists('json_number_cmp');
+        }
+    }
+
+    public function testAJsonStringThatHoldsABooleanIsHandledPerDatabase(): void
+    {
+        $this->prepareJsonNumberTable(self::BOOLEAN_DOCUMENTS);
+        self::$db->find()->table('json_number_cmp')->insert(['id' => 8, 'data' => '{"ok":"true"}']);
+
+        try {
+            $expected = $this->textScalarsAreTyped() ? [1, 8] : [1];
+            $this->assertSame($expected, $this->jsonNumberIds(self::$db->find()->from('json_number_cmp')->whereJsonPath('data', ['ok'], '=', true)->get()));
+        } finally {
+            self::$db->schema()->dropTableIfExists('json_number_cmp');
+        }
+    }
+
+    public function testBigIntegersAndSmallFractionsAreNotRounded(): void
+    {
+        $this->prepareJsonNumberTable();
+        foreach ([21 => '{"age":9007199254740993}', 22 => '{"age":0.000000000001}', 23 => '{"age":0}'] as $id => $document) {
+            self::$db->find()->table('json_number_cmp')->insert(['id' => $id, 'data' => $document]);
+        }
+
+        try {
+            $among = static fn (string $operator, int|float $value): array => self::$db->find()->from('json_number_cmp')
+                ->where('id', 20, '>')->whereJsonPath('data', ['age'], $operator, $value)->get();
+
+            // 2^53 + 1 is not representable as a float
+            $this->assertSame([21], $this->jsonNumberIds($among('=', 9007199254740993)));
+            $this->assertSame([], $this->jsonNumberIds($among('=', 9007199254740992)));
+            // 1e-12 is not zero
+            $this->assertSame([21, 22], $this->jsonNumberIds($among('>', 0)));
+            $this->assertSame([23], $this->jsonNumberIds($among('=', 0)));
+        } finally {
+            self::$db->schema()->dropTableIfExists('json_number_cmp');
+        }
+    }
+
     public function testAJsonStringThatHoldsANumberIsHandledPerDatabase(): void
     {
         $this->prepareJsonNumberTable();
         self::$db->find()->table('json_number_cmp')->insert(['id' => 7, 'data' => '{"age":"30"}']);
 
         try {
-            $expected = $this->numericStringsAreNumbers() ? [2, 7] : [2];
+            $expected = $this->textScalarsAreTyped() ? [2, 7] : [2];
             $this->assertSame($expected, $this->jsonNumberIds(self::$db->find()->from('json_number_cmp')->whereJsonPath('data', ['age'], '=', 30)->get()));
         } finally {
             self::$db->schema()->dropTableIfExists('json_number_cmp');

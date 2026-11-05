@@ -14,7 +14,7 @@ final class JsonTests extends BasePostgreSQLTestCase
 {
     use JsonNumberComparisonScenarios;
 
-    protected function numericStringsAreNumbers(): bool
+    protected function textScalarsAreTyped(): bool
     {
         return false;
     }

@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace tommyknocker\pdodb\query;
 
 use tommyknocker\pdodb\dialects\roles\DialectJsonInterface;
-use tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface;
+use tommyknocker\pdodb\dialects\roles\DialectJsonTypedComparisonInterface;
 use tommyknocker\pdodb\dialects\traits\JsonPathParser;
 use tommyknocker\pdodb\query\interfaces\ParameterManagerInterface;
 
 /**
  * `<value at a JSON path> <operator> <value>` as SQL, with the value registered as a parameter.
  *
- * A number is compared as a number when the dialect can read the JSON value as one ({@see DialectJsonNumberComparisonInterface}).
- * Anything else is compared as text, which is what the dialect extracts a JSON value as: so the parameter is text too.
+ * A number is compared as a number and a boolean as a boolean when the dialect can read the JSON value as one
+ * ({@see DialectJsonTypedComparisonInterface}). Anything else is compared as text, which is what the dialect extracts a JSON value as: so the parameter is text too.
  */
 final class JsonPathComparison
 {
@@ -30,8 +30,13 @@ final class JsonPathComparison
         mixed $value
     ): string {
         $wholeDocument = is_array($path) ? $path === [] : JsonPathParser::parse($path) === [];
-        if (!$wholeDocument && (is_int($value) || is_float($value)) && $dialect instanceof DialectJsonNumberComparisonInterface) {
-            return $dialect->formatJsonNumberComparison($column, $path, $operator, $parameters->addParam($paramName, $value));
+        if (!$wholeDocument && $dialect instanceof DialectJsonTypedComparisonInterface) {
+            if (is_int($value) || is_float($value)) {
+                return $dialect->formatJsonNumberComparison($column, $path, $operator, $parameters->addParam($paramName, $value));
+            }
+            if (is_bool($value)) {
+                return $dialect->formatJsonBooleanComparison($column, $path, $operator, $parameters->addParam($paramName, $value));
+            }
         }
 
         $placeholder = $parameters->addParam($paramName, is_scalar($value) ? (string)$value : $value);

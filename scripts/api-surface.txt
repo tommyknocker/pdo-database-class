@@ -2132,7 +2132,7 @@ tommyknocker\pdodb\dialects\mssql\MSSQLDdlQueryBuilder  public uniqueidentifier(
 tommyknocker\pdodb\dialects\mssql\MSSQLDdlQueryBuilder  public uuid(): ColumnSchema
 tommyknocker\pdodb\dialects\mssql\MSSQLDdlQueryBuilder  public varbinary(?int $length = null): ColumnSchema
 tommyknocker\pdodb\dialects\mssql\MSSQLDdlQueryBuilder  public xml(): ColumnSchema
-tommyknocker\pdodb\dialects\mssql\MSSQLDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface)
+tommyknocker\pdodb\dialects\mssql\MSSQLDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonTypedComparisonInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface)
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  protected buildCreateDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  protected buildDropDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  protected buildListDatabasesSql(): string
@@ -2225,6 +2225,7 @@ tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatGroupConcat(string|
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mssql\MSSQLDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -2358,6 +2359,7 @@ tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatGroupConcat(st
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -2482,7 +2484,7 @@ tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlQueryBuilder  public tinyT
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlQueryBuilder  public uuid(): ColumnSchema
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlQueryBuilder  public varbinary(?int $length = null): ColumnSchema
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDdlQueryBuilder  public year(?int $length = null): ColumnSchema
-tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect (abstract class extends DialectAbstract implements CatalogQueriesInterface, DialectJsonNumberComparisonInterface, DialectMetadataMemoInterface)
+tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect (abstract class extends DialectAbstract implements CatalogQueriesInterface, DialectJsonTypedComparisonInterface, DialectMetadataMemoInterface)
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  protected FeatureSupportInterface $featureSupport
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  protected MySQLFamilyDdlBuilder $ddlBuilder
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  protected MySQLFamilyDmlBuilder $dmlBuilder
@@ -2575,6 +2577,7 @@ tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatGroupCo
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilyDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -2674,6 +2677,7 @@ tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatGr
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\mysqlfamily\MySQLFamilySqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -2756,7 +2760,7 @@ tommyknocker\pdodb\dialects\oracle\OracleDdlQueryBuilder  public timestampTz(?in
 tommyknocker\pdodb\dialects\oracle\OracleDdlQueryBuilder  public uuid(): ColumnSchema
 tommyknocker\pdodb\dialects\oracle\OracleDdlQueryBuilder  public varchar2(int $length): ColumnSchema
 tommyknocker\pdodb\dialects\oracle\OracleDdlQueryBuilder  public xmltype(): ColumnSchema
-tommyknocker\pdodb\dialects\oracle\OracleDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectJsonNumberComparisonInterface, DialectParameterTypesInterface)
+tommyknocker\pdodb\dialects\oracle\OracleDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectJsonTypedComparisonInterface, DialectParameterTypesInterface)
 tommyknocker\pdodb\dialects\oracle\OracleDialect  protected buildCreateDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  protected buildDropDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  protected buildListDatabasesSql(): string
@@ -2867,6 +2871,7 @@ tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatGroupConcat(strin
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\oracle\OracleDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -3015,6 +3020,7 @@ tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatGroupConcat(
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -3110,7 +3116,7 @@ tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlQueryBuilder  public tinyInt
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlQueryBuilder  public tsquery(): ColumnSchema
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlQueryBuilder  public tsvector(): ColumnSchema
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDdlQueryBuilder  public uuid(): ColumnSchema
-tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface)
+tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonTypedComparisonInterface)
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  protected buildCreateDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  protected buildDefaultExpression(string $colSql, mixed $expr, string $col): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  protected buildDropDatabaseSql(string $databaseName): string
@@ -3201,6 +3207,7 @@ tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatGroupConc
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -3328,6 +3335,7 @@ tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatGrou
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\postgresql\PostgreSQLSqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -3511,8 +3519,9 @@ tommyknocker\pdodb\dialects\roles\DialectJsonInterface  public formatJsonRemove(
 tommyknocker\pdodb\dialects\roles\DialectJsonInterface  public formatJsonReplace(string $col, array|string $path, mixed $value): array
 tommyknocker\pdodb\dialects\roles\DialectJsonInterface  public formatJsonSet(string $col, array|string $path, mixed $value): array
 tommyknocker\pdodb\dialects\roles\DialectJsonInterface  public formatJsonType(string $col, array|string|null $path = null): string
-tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface (interface)
-tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
+tommyknocker\pdodb\dialects\roles\DialectJsonTypedComparisonInterface (interface)
+tommyknocker\pdodb\dialects\roles\DialectJsonTypedComparisonInterface  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+tommyknocker\pdodb\dialects\roles\DialectJsonTypedComparisonInterface  public formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\roles\DialectLoaderInterface (interface)
 tommyknocker\pdodb\dialects\roles\DialectLoaderInterface  public buildLoadCsvSql(string $table, string $filePath, array $options = []): string
 tommyknocker\pdodb\dialects\roles\DialectLoaderInterface  public buildLoadCsvSqlGenerator(string $table, string $filePath, array $options = []): Generator
@@ -3707,6 +3716,7 @@ tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatGroupConcat(
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatJsonGet(string $col, array|string $path, bool $asText = true): string
@@ -3745,7 +3755,7 @@ tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public formatYear(string|
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public needsUnionParentheses(): bool
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public normalizeRawValue(string $sql): string
 tommyknocker\pdodb\dialects\sqlite\SQLiteSqlFormatter  public registerRegexpFunctions(PDO $pdo, bool $force = false): void
-tommyknocker\pdodb\dialects\sqlite\SqliteDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface)
+tommyknocker\pdodb\dialects\sqlite\SqliteDialect (class extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonTypedComparisonInterface)
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  protected buildCreateDatabaseSql(string $databaseName): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  protected buildDefaultExpression(string $colSql, mixed $expr, string $col): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  protected buildDropDatabaseSql(string $databaseName): string
@@ -3830,6 +3840,7 @@ tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatGroupConcat(strin
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatHour(string|RawValue $value): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatIfNull(string $expr, mixed $default): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatInterval(string|RawValue $expr, string $value, string $unit, bool $isAdd): string
+tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonContains(string $col, mixed $value, array|string|null $path = null): array|string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonExists(string $col, array|string $path): string
 tommyknocker\pdodb\dialects\sqlite\SqliteDialect  public formatJsonGet(string $col, array|string $path, bool $asText = true): string

@@ -50,17 +50,23 @@ $adults = $db->find()
     ->get();
 ```
 
-A number is compared with the JSON value as a number, so `age > 27` does not pick `5`. A JSON value that is not a number
-(a string, a boolean, `null`, a missing key) does not match such a condition and never makes the statement fail. Any other
-value (a string, for example) is compared as text:
+A number is compared with the JSON value as a number, so `age > 27` does not pick `5`, and a boolean as a boolean, so
+`verified = true` matches the JSON `true` and not the number `1`. A JSON value of another type (a string, `null`, a missing
+key) does not match such a condition and never makes the statement fail. Any other value (a string, for example) is compared
+as text:
 
 ```php
-->where(Db::jsonPath('meta', ['age'], '>', 27))      // numeric: matches 30 and 100, not 5 and not "abc"
-->where(Db::jsonPath('meta', ['city'], '=', 'NYC'))  // text
+->where(Db::jsonPath('meta', ['age'], '>', 27))         // numeric: matches 30 and 100, not 5 and not "abc"
+->where(Db::jsonPath('meta', ['verified'], '=', true))  // boolean: matches true, not 1 and not "yes"
+->where(Db::jsonPath('meta', ['city'], '=', 'NYC'))     // text
 ```
 
-A JSON string that holds a number (`"30"`) is not a number on MySQL, MariaDB, PostgreSQL and SQLite, so `= 30` does not match it.
-On SQL Server and Oracle it is, because `jsonSet()` writes numbers as strings there.
+Numbers are compared exactly within what the database converts: a 64-bit integer and a fraction down to `1e-30` on MySQL and
+MariaDB, `1e-18` on SQL Server. A number outside that range (MySQL and MariaDB: beyond `1e35` or closer to zero than `1e-30`;
+SQL Server: beyond `1e20`) matches no numeric condition instead of being rounded.
+
+A JSON string that holds a number (`"30"`) or a boolean (`"true"`) is not one on MySQL, MariaDB, PostgreSQL and SQLite, so
+`= 30` and `= true` do not match it. On SQL Server and Oracle it is, because `jsonSet()` writes values as strings there.
 
 ### Multiple JSON Conditions
 

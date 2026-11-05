@@ -14,7 +14,7 @@ final class JsonTests extends BaseMSSQLTestCase
 {
     use JsonNumberComparisonScenarios;
 
-    protected function numericStringsAreNumbers(): bool
+    protected function textScalarsAreTyped(): bool
     {
         return true;
     }

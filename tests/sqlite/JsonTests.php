@@ -14,7 +14,7 @@ final class JsonTests extends BaseSqliteTestCase
 {
     use JsonNumberComparisonScenarios;
 
-    protected function numericStringsAreNumbers(): bool
+    protected function textScalarsAreTyped(): bool
     {
         return false;
     }

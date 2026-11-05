@@ -86,6 +86,19 @@ class SQLiteSqlFormatter extends SqlFormatterAbstract
     }
 
     /**
+     * The condition "<boolean at the path> <operator> <placeholder>"; NULL for a value that is not a JSON boolean.
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $jsonPath = $this->buildJsonPathString($parts);
+
+        return 'CASE json_type(' . $this->quoteIdentifier($col) . ", '{$jsonPath}') WHEN 'true' THEN 1 WHEN 'false' THEN 0 END {$operator} {$placeholder}";
+    }
+
+    /**
      * {@inheritDoc}
      */
     public function formatJsonGet(string $col, array|string $path, bool $asText = true): string

@@ -20,7 +20,7 @@ use tommyknocker\pdodb\dialects\InsertId;
 use tommyknocker\pdodb\dialects\InsertStatement;
 use tommyknocker\pdodb\dialects\PlanExplainAvailability;
 use tommyknocker\pdodb\dialects\roles\DialectInsertReturningInterface;
-use tommyknocker\pdodb\dialects\roles\DialectJsonNumberComparisonInterface;
+use tommyknocker\pdodb\dialects\roles\DialectJsonTypedComparisonInterface;
 use tommyknocker\pdodb\dialects\roles\DialectMetadataMemoInterface;
 use tommyknocker\pdodb\dialects\roles\DialectParameterTypesInterface;
 use tommyknocker\pdodb\dialects\SqlScriptSplitter;
@@ -35,7 +35,7 @@ use tommyknocker\pdodb\query\DdlQueryBuilder;
 use tommyknocker\pdodb\query\interfaces\ExecutionEngineInterface;
 use tommyknocker\pdodb\query\schema\ColumnSchema;
 
-class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonNumberComparisonInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface
+class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, DialectInsertReturningInterface, DialectJsonTypedComparisonInterface, DialectMetadataMemoInterface, DialectParameterTypesInterface
 {
     use MetadataMemoTrait;
     use MssqlCatalogQueriesTrait;
@@ -442,6 +442,14 @@ class MSSQLDialect extends DialectAbstract implements CatalogQueriesInterface, D
     public function formatJsonNumberComparison(string $col, array|string $path, string $operator, string $placeholder): string
     {
         return $this->sqlFormatter->formatJsonNumberComparison($col, $path, $operator, $placeholder);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        return $this->sqlFormatter->formatJsonBooleanComparison($col, $path, $operator, $placeholder);
     }
 
     /**

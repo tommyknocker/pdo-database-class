@@ -48,9 +48,26 @@ abstract class MySQLFamilySqlFormatter extends SqlFormatterAbstract
     {
         $parts = $this->normalizeJsonPath($path);
         $extract = 'JSON_EXTRACT(' . $this->quoteIdentifier($col) . ", '" . $this->buildJsonPathString($parts) . "')";
+        $text = "JSON_UNQUOTE({$extract})";
 
+        // DECIMAL(65,30) keeps a 64-bit integer exact and a fraction down to 1e-30. A number outside 1e-30 .. 1e35 (and 0) would
+        // be cut to 0 or to the largest DECIMAL, which matches the wrong rows or fails a strict-mode UPDATE: it is NULL here.
         return "CASE WHEN JSON_TYPE({$extract}) IN ('INTEGER', 'UNSIGNED INTEGER', 'DOUBLE', 'DECIMAL') "
-            . "THEN CAST(JSON_UNQUOTE({$extract}) AS DECIMAL(65,10)) END {$operator} {$placeholder}";
+            . "AND (CAST({$text} AS DOUBLE) = 0 OR ABS(CAST({$text} AS DOUBLE)) BETWEEN 1e-30 AND 1e35) "
+            . "THEN CAST({$text} AS DECIMAL(65,30)) END {$operator} {$placeholder}";
+    }
+
+    /**
+     * The condition "<boolean at the path> <operator> <placeholder>"; NULL for a value that is not a JSON boolean.
+     *
+     * @param array<int, string|int>|string $path
+     */
+    public function formatJsonBooleanComparison(string $col, array|string $path, string $operator, string $placeholder): string
+    {
+        $parts = $this->normalizeJsonPath($path);
+        $extract = 'JSON_EXTRACT(' . $this->quoteIdentifier($col) . ", '" . $this->buildJsonPathString($parts) . "')";
+
+        return "CASE WHEN JSON_TYPE({$extract}) = 'BOOLEAN' THEN JSON_UNQUOTE({$extract}) = 'true' END {$operator} {$placeholder}";
     }
 
     /**

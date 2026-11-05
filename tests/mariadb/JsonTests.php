@@ -50,7 +50,7 @@ final class JsonTests extends BaseMariaDBTestCase
         }
     }
 
-    protected function numericStringsAreNumbers(): bool
+    protected function textScalarsAreTyped(): bool
     {
         return false;
     }

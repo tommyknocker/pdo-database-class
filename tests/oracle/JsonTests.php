@@ -15,7 +15,7 @@ final class JsonTests extends BaseOracleTestCase
 {
     use JsonNumberComparisonScenarios;
 
-    protected function numericStringsAreNumbers(): bool
+    protected function textScalarsAreTyped(): bool
     {
         return true;
     }
