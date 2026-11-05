@@ -1,4 +1,65 @@
-# Upgrading to 3.0
+# Upgrading from 3.0 to 3.1
+
+3.1 needs the same PHP as 3.0 (8.4 or newer). It fixes results that were wrong in 3.0.0 and earlier, so some code that
+depended on the old results changes. Nothing is required of a custom dialect: every new dialect interface is optional.
+The upgrade from 2.x is the next section.
+
+## Check these first: results can change without an error
+
+- [ ] **`insert()` and `replace()`** return the key of the row the statement wrote, or `null` when there is none to report
+      (a skipped `INSERT IGNORE`, a composite key, a table without a key, and on MySQL and Oracle a key the database fills
+      in from a default). 2.10 to 3.0.0 returned `1` there, which looked like a real id; code that passes the result on
+      (`$parent = insert(...)`) must take the key from its own data in such cases. PostgreSQL, SQLite, MariaDB 10.5+ and
+      SQL Server read the key with `RETURNING` / `OUTPUT`, so it can also be a string (a text or UUID key). The type is
+      `int|string|null`: a string for a non-numeric key or an id beyond `PHP_INT_MAX`. `insertFrom()` and
+      `replaceMulti()` return the number of affected rows.
+- [ ] **JSON-path comparison with a number or a boolean** (`whereJsonPath()`, `Db::jsonPath()`) is typed. Before, the value was
+      compared as text: `> 27` selected `5`, `= true` matched the number `1` and `= false` matched nothing. A JSON string that
+      holds a number or a boolean no longer matches a numeric or boolean condition on MySQL, MariaDB, PostgreSQL and SQLite (it
+      still does on SQL Server and Oracle).
+- [ ] **Query parameters are bound with their own type** instead of all as text: `false` and whole numbers now reach
+      PostgreSQL, MariaDB, Oracle and SQLite as what they are. A float is still sent as text.
+- [ ] **`limit()` and `offset()`** throw `InvalidArgumentException` for a negative number.
+- [ ] **SQLite `REGEXP`, `regexp_replace()` and `regexp_extract()`** throw a `QueryException` for an invalid pattern (they
+      warned and acted as "no match"), and a `/` in a pattern is a literal.
+
+## Data written by older versions
+
+Nothing is rewritten for you. Documents and columns written before the upgrade keep what they hold:
+
+- [ ] **MariaDB:** `jsonSet()` / `jsonReplace()` used to store numbers, booleans, objects and lists as JSON strings. Find them
+      with `SELECT id FROM t WHERE JSON_TYPE(JSON_EXTRACT(col, '$.path')) = 'STRING'` and rewrite them with `jsonSet()`.
+- [ ] **SQL Server:** the same, and text was written with extra quotes (`"abc"` as `"\"abc\""`). Find the text ones with
+      `SELECT id FROM t WHERE JSON_VALUE(col, '$.path') LIKE '"%"'` and rewrite them the same way.
+- [ ] **Oracle:** the same, and `jsonReplace()` added a key named like the path (`"$.a.b"`) instead of replacing the value.
+      Find those with `JSON_EXISTS(col, '$."$.a.b"')`, remove the key with `JSON_TRANSFORM(col, REMOVE '$."$.a.b"')` and rewrite
+      the value with `jsonSet()`.
+- [ ] **SQL Server `decimal(p, s)` columns:** before this release `decimal(10, 2)` created `DECIMAL(10)` (no fraction) in
+      `createTable()`, `addColumn()` and `alterColumn()`, and the database rounded every value to a whole number. New
+      columns are correct. Existing ones are not repaired: find them with
+      `SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION FROM INFORMATION_SCHEMA.COLUMNS WHERE DATA_TYPE = 'decimal' AND NUMERIC_SCALE = 0`
+      and `ALTER COLUMN` the ones that should hold fractions. The rounded values cannot be recovered.
+
+## If you implement `DialectInterface`
+
+All optional; a dialect that implements none of them behaves as before.
+
+- [ ] `DialectInsertReturningInterface` (read the inserted key with `RETURNING` / `OUTPUT`),
+      `DialectParameterTypesInterface` (choose the PDO type of a parameter), `DialectMetadataMemoInterface` (remember table
+      metadata per connection) and `DialectJsonTypedComparisonInterface` (compare a JSON value with a number or a boolean as that type).
+- [ ] **Custom insert-id hooks:** `extractInsertId()` may return `int|string|false|null`. A key of `0` is valid;
+      return `false` when no key can be reported and `null` to use the connection's `lastInsertId()` fallback.
+      Existing overrides returning `?int` or `int|string|null` remain type-compatible.
+
+## Known limits of JSON writes and comparisons
+
+They come from the databases, except the PostgreSQL one. See [JSON modification](documentation/04-json-operations/04-json-modification.md#differences-between-databases).
+
+Every change is listed in the [CHANGELOG](CHANGELOG.md) under 3.1.0.
+
+---
+
+# Upgrading from 2.x to 3.0
 
 PDOdb 3.0 needs PHP 8.4 or newer, the same as 2.14. The full guide, with the reason for each change and what to do about
 it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). This page is the checklist.
@@ -31,34 +92,6 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
 - [ ] Migrations on MySQL, MariaDB and Oracle no longer run in a transaction; `safeUp()` / `safeDown()` are replaced by
       `Migration::transactional()`; `--pretend` is gone (use `--dry-run`).
 - [ ] `RetryableConnection` retries only reads (`retry.retry_writes` to change).
-- [ ] `insert()` and `replace()` return the key of the row the statement wrote, or `null` when there is none to report
-      (a skipped `INSERT IGNORE`, a composite key, a table without a key, and on MySQL and Oracle a key the database fills
-      in from a default). 2.10 to 3.0.0 returned `1` there, which looked like a real id; code that passes the result on
-      (`$parent = insert(...)`) must take the key from its own data in such cases. PostgreSQL, SQLite, MariaDB 10.5+ and
-      SQL Server read the key with `RETURNING` / `OUTPUT`, so it can also be a string (a text or UUID key). The type is
-      `int|string|null`: a string for a non-numeric key or an id beyond `PHP_INT_MAX`. `insertFrom()` and
-      `replaceMulti()` return the number of affected rows. A custom dialect can opt in to `RETURNING` with
-      `DialectInsertReturningInterface`.
-- [ ] **Custom insert-id hooks:** `extractInsertId()` may return `int|string|false|null`. A key of `0` is valid;
-      return `false` when no key can be reported and `null` to use the connection's `lastInsertId()` fallback.
-      Existing overrides returning `?int` or `int|string|null` remain type-compatible. On MySQL a supplied key that is
-      not AUTO_INCREMENT is reported as `null` when a BEFORE INSERT trigger may replace it or trigger metadata access
-      cannot be established.
-- [ ] **SQL Server `decimal(p, s)` columns:** before this release `decimal(10, 2)` created `DECIMAL(10)` (no fraction) in
-      `createTable()`, `addColumn()` and `alterColumn()`, and the database rounded every value to a whole number. New
-      columns are correct. Existing ones are not repaired: find them with
-      `SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION FROM INFORMATION_SCHEMA.COLUMNS WHERE DATA_TYPE = 'decimal' AND NUMERIC_SCALE = 0`
-      and `ALTER COLUMN` the ones that should hold fractions. The rounded values cannot be recovered.
-- [ ] **JSON-path comparison with a number or a boolean** (`whereJsonPath()`, `Db::jsonPath()`) is typed. Before, the value was
-      compared as text: `> 27` selected `5`, `= true` matched the number `1` and `= false` matched nothing. A JSON string that
-      holds a number or a boolean no longer matches a numeric or boolean condition on MySQL, MariaDB, PostgreSQL and SQLite (it
-      still does on SQL Server and Oracle). On MariaDB
-      `jsonSet()` / `jsonReplace()` used to store numbers, booleans, objects and lists as JSON strings; documents written
-      that way keep the strings. Find them with `SELECT id FROM t WHERE JSON_TYPE(JSON_EXTRACT(col, '$.path')) = 'STRING'`
-      and rewrite them with `jsonSet()`. SQL Server did the same, and wrote text with extra quotes (`"abc"` as `"\"abc\""`):
-      find the text ones with `SELECT id FROM t WHERE JSON_VALUE(col, '$.path') LIKE '"%"'` and rewrite them the same way.
-      Oracle wrote strings too, and `jsonReplace()` added a key named like the path (`"$.a.b"`): find those with
-      `JSON_EXISTS(col, '$."$.a.b"')`, remove the key with `JSON_TRANSFORM(col, REMOVE '$."$.a.b"')` and rewrite the value with `jsonSet()`.
 - [ ] MySQL `LOCAL INFILE` is off unless you pass `PDO\Mysql::ATTR_LOCAL_INFILE`.
 - [ ] CLI: unknown options exit with 2, failures print `Error: ...` and exit with 1 (`PDODB_DEBUG=1` for traces).
 - [ ] AI settings: one selected provider (`PDODB_AI_API_KEY`, `PDODB_AI_MODEL`).

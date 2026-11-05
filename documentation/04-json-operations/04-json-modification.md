@@ -206,6 +206,18 @@ UPDATE users SET meta = json_set(meta, '$.city', 'London');
 
 PDOdb handles these differences automatically.
 
+### Differences between databases
+
+`jsonSet()` and `jsonReplace()` write the value as the JSON type it has in PHP (a number, a boolean, text, `null`, an object, a
+list) on every database. These differences remain:
+
+| Behavior | Where | Why |
+|---|---|---|
+| `jsonSet()` on a path whose parent object is missing (`['a', 'b']` in a document without `a`) writes nothing | SQL Server, Oracle | `JSON_MODIFY` and `JSON_TRANSFORM` do not create parents; the other databases create `{"a":{"b":...}}` |
+| `jsonReplace()` on a missing key creates it | SQL Server | `JSON_MODIFY` always creates; the check for an existing path (`JSON_PATH_EXISTS`) needs SQL Server 2022 |
+| A string that is JSON text (`true`, `null`, `"x"`, `{...}`, `[...]`) is written as that JSON, not as a string | PostgreSQL | the PostgreSQL formatter accepts JSON text; the other databases store the string |
+| A JSON string that holds a number (`"30"`) or a boolean (`"true"`) matches `= 30` / `= true` in `whereJsonPath()` | SQL Server, Oracle | the database reads a string and a number alike as text and converts it; see [querying](02-json-querying.md) |
+
 ## Examples
 
 - [JSON Modification](../../examples/04-json/03-json-modification.php) - Update JSON values, set, remove, append

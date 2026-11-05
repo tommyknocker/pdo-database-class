@@ -4,7 +4,7 @@ PDOdb 3.0 requires the same PHP as 2.14 (8.4 or newer). Most of the major versio
 where 2.x quietly did something unsafe or surprising now refuse, or do the safe thing. Read the sections below in order;
 the first two are the ones that can change your application's results without any error.
 
-The one-page checklist is [UPGRADE.md](../../UPGRADE.md). The complete list of changes is the
+The one-page checklist is [UPGRADE.md](../../UPGRADE.md), which also has the section for 3.0 to 3.1. The complete list of changes is the
 [CHANGELOG](../../CHANGELOG.md) (entries marked **Breaking**).
 
 ## Before you start
