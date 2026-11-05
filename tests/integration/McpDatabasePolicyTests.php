@@ -130,9 +130,18 @@ final class McpDatabasePolicyTests extends TestCase
         }
     }
 
-    public function testPostgreSqlDuplicateNamesDoNotMixSchemasOrForeignKeys(): void
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function postgreSqlOnly(): array
     {
-        $db = IntegrationDatabases::connect('postgresql');
+        return IntegrationDatabases::provider(['postgresql']);
+    }
+
+    #[DataProvider('postgreSqlOnly')]
+    public function testPostgreSqlDuplicateNamesDoNotMixSchemasOrForeignKeys(string $name): void
+    {
+        $db = IntegrationDatabases::connect($name);
         $pdo = $db->connection->getPdo();
         $suffix = bin2hex(random_bytes(4));
         $a = 'mcp_a_' . $suffix;

@@ -77,9 +77,9 @@ jobs:
           extensions: pdo_mysql, simplexml, xmlreader, redis, memcached, apcu
           coverage: xdebug
       - run: composer install --no-interaction --prefer-dist
-      - name: Enable MySQL local_infile
+      - name: Enable MySQL local_infile and triggers for a non-SUPER user
         run: |
-          mysql -h 127.0.0.1 -uroot -proot -e "SET GLOBAL local_infile=1;"
+          mysql -h 127.0.0.1 -uroot -proot -e "SET GLOBAL local_infile=1; SET GLOBAL log_bin_trust_function_creators=1;"
       - run: |
           PDODB_DSN="mysql:host=127.0.0.1;port=3306;dbname=testdb;charset=utf8mb4" \
           PDODB_USERNAME="testuser" \

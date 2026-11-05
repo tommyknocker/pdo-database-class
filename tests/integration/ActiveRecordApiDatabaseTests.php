@@ -62,9 +62,18 @@ final class ActiveRecordApiDatabaseTests extends TestCase
         return IntegrationDatabases::provider();
     }
 
-    public function testOracleRejectsLossyTimestampSessionFormat(): void
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function oracleOnly(): array
     {
-        $db = IntegrationDatabases::connect('oracle');
+        return IntegrationDatabases::provider(['oracle']);
+    }
+
+    #[DataProvider('oracleOnly')]
+    public function testOracleRejectsLossyTimestampSessionFormat(string $name): void
+    {
+        $db = IntegrationDatabases::connect($name);
         $db->rawQuery("ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS'");
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('preserve microseconds');
