@@ -373,7 +373,7 @@ jobs:
         run: |
           if ! php -m | grep -q pdo_sqlsrv; then
             sudo pecl install pdo_sqlsrv-5.11.1 || sudo pecl install -f pdo_sqlsrv-5.11.1
-            echo "extension=pdo_sqlsrv.so" | sudo tee $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||")/conf.d/pdo_sqlsrv.ini
+            echo "extension=pdo_sqlsrv.so" | sudo tee "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')/pdo_sqlsrv.ini"
           fi
           php -m | grep -q pdo_sqlsrv || { echo "pdo_sqlsrv extension is not loaded"; exit 1; }
       - name: Wait for MSSQL to be ready
@@ -536,22 +536,23 @@ jobs:
           
           sudo ldconfig
           
-          PHP_INI_DIR=$(dirname $(php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"))
+          # php --ini prints the paths in quotes since PHP 8.5, so take the scan directory from PHP itself
+          PHP_INI_DIR=$(dirname "$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')")
           sudo mkdir -p "$PHP_INI_DIR/conf.d"
           
-          if ! php -m | grep -q oci8; then
+          if ! php -m | grep -qi '^oci8$'; then
             echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install oci8 || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install -f oci8
             echo "extension=oci8.so" | sudo tee "$PHP_INI_DIR/conf.d/oci8.ini" > /dev/null
             sudo ldconfig
           fi
           
-          if ! php -m | grep -q pdo_oci; then
+          if ! php -m | grep -qi '^pdo_oci$'; then
             echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install pdo_oci || echo "instantclient,$ORACLE_HOME" | sudo -E env C_INCLUDE_PATH="$C_INCLUDE_PATH" CPPFLAGS="$CPPFLAGS" LDFLAGS="$LDFLAGS" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" pecl install -f pdo_oci
             echo "extension=pdo_oci.so" | sudo tee "$PHP_INI_DIR/conf.d/pdo_oci.ini" > /dev/null
             sudo ldconfig
           fi
           
-          if ! php -m | grep -q pdo_oci; then
+          if ! php -m | grep -qi '^pdo_oci$'; then
             echo "pdo_oci extension is not loaded"
             php --ini
             ls -l "$PHP_INI_DIR/conf.d" | grep -i -E "oci|pdo" || true
