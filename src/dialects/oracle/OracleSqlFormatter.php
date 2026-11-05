@@ -127,7 +127,7 @@ class OracleSqlFormatter extends SqlFormatterAbstract
 
     /**
      * The condition "<number at the path> <operator> <placeholder>". NULL for a value that is not a number. A JSON string that
-     * holds a number counts as that number: jsonSet() writes numbers as strings here, and RETURNING NUMBER converts them.
+     * holds a number counts as that number: RETURNING NUMBER converts a string to a number.
      *
      * @param array<int, string|int>|string $path
      */
@@ -204,57 +204,30 @@ class OracleSqlFormatter extends SqlFormatterAbstract
      */
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $colQuoted = $this->quoteIdentifier($col);
-        $param = $this->generateParameterName('jsonset', $col . '|' . implode('.', $parts));
-        $jsonText = $this->encodeToJson($value);
-
-        // Oracle JSON_MERGEPATCH requires a proper JSON object
-        // Build nested JSON object structure based on path
-        // For path ['a', 'c'], we need {"a": {"c": value}}
-        $mergeObject = $this->buildNestedJsonObject($parts, $param);
-
-        // Oracle JSON_MERGEPATCH works with CLOB/TEXT columns directly
-        // It returns JSON type, but UPDATE requires CLOB/VARCHAR2
-        // Cast result to CLOB to ensure type compatibility
-        // Note: Both operands must be JSON type, so cast column to JSON if needed
-        // For CLOB columns containing JSON, Oracle can work with them directly
-        $sql = "TO_CLOB(JSON_MERGEPATCH(CAST($colQuoted AS JSON), CAST($mergeObject AS JSON)))";
-
-        return [$sql, [$param => $jsonText]];
+        return $this->formatJsonTransform($col, $path, $value, 'SET', 'jsonset');
     }
 
     /**
-     * Build nested JSON object structure for JSON_MERGEPATCH.
+     * JSON_TRANSFORM that writes the value as the JSON type it has in PHP.
      *
-     * @param array<int, string|int> $parts Path parts
-     * @param string $param Parameter placeholder
+     * The parameter holds the JSON text of the value and FORMAT JSON makes the database parse it, so a number stays a number,
+     * a boolean a boolean, text a string and null a JSON null. SET creates a missing key and REPLACE does not. Neither creates
+     * the missing parents of the key. RETURNING CLOB keeps the column type of the result.
      *
-     * @return string JSON object SQL expression
+     * @param array<int, string|int>|string $path
+     * @param 'SET'|'REPLACE' $operation
+     *
+     * @return array{0: string, 1: array<string, string>}
      */
-    protected function buildNestedJsonObject(array $parts, string $param): string
+    protected function formatJsonTransform(string $col, array|string $path, mixed $value, string $operation, string $paramPrefix): array
     {
-        if (empty($parts)) {
-            // For leaf values, parameter is already a JSON string
-            return $param;
-        }
+        $jsonPath = $this->buildJsonPathString($this->normalizeJsonPath($path));
+        $param = $this->generateParameterName($paramPrefix, $col . '|' . $jsonPath);
 
-        // Build nested structure: {"part1": {"part2": {"partN": value}}}
-        // Use parameter only once at the leaf level
-        // Build structure from inside out
-        $structure = $param;
-        for ($i = count($parts) - 1; $i >= 0; $i--) {
-            $part = $parts[$i];
-            // Oracle JSON_OBJECT requires string keys for all keys, including array indices
-            // Convert numeric indices to strings to avoid ORA-00932 error
-            $key = "'" . str_replace("'", "''", (string)$part) . "'";
-            // JSON_OBJECT creates nested structure
-            // For Oracle, JSON_OBJECT requires string values, so we use the parameter directly
-            // The parameter is already a JSON-encoded string from encodeToJson()
-            $structure = "JSON_OBJECT($key : $structure)";
-        }
-
-        return $structure;
+        return [
+            'JSON_TRANSFORM(' . $this->quoteIdentifier($col) . ", {$operation} '{$jsonPath}' = {$param} FORMAT JSON RETURNING CLOB)",
+            [$param => $this->encodeToJson($value)],
+        ];
     }
 
     /**
@@ -275,19 +248,7 @@ class OracleSqlFormatter extends SqlFormatterAbstract
      */
     public function formatJsonReplace(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $colQuoted = $this->quoteIdentifier($col);
-        $param = $this->generateParameterName('jsonreplace', $col . '|' . $jsonPath);
-        $jsonText = $this->encodeToJson($value);
-
-        // Oracle uses JSON_TRANSFORM for replacement (21c+)
-        // For older versions, use JSON_MERGEPATCH
-        // Cast to CLOB to ensure type compatibility
-        // Ensure parameter is treated as JSON string
-        $sql = "TO_CLOB(JSON_MERGEPATCH($colQuoted, JSON_OBJECT('$jsonPath' : TO_CLOB($param))))";
-
-        return [$sql, [$param => $jsonText]];
+        return $this->formatJsonTransform($col, $path, $value, 'REPLACE', 'jsonreplace');
     }
 
     /**

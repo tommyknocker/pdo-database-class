@@ -2347,6 +2347,7 @@ tommyknocker\pdodb\dialects\mssql\MSSQLOutboxClaim  public claim(PdoDb $db, stri
 tommyknocker\pdodb\dialects\mssql\MSSQLRegexTranslator (final class)
 tommyknocker\pdodb\dialects\mssql\MSSQLRegexTranslator  public static translate(string $regex): array
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter (class extends SqlFormatterAbstract)
+tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  protected formatJsonModify(string $col, array|string $path, mixed $value, string $paramPrefix): array
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  protected hasNativeRegexp(): bool
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  protected normalizeGreatestLeastArgs(array $args): array
 tommyknocker\pdodb\dialects\mssql\MSSQLSqlFormatter  public formatCurDate(): string
@@ -3009,7 +3010,7 @@ tommyknocker\pdodb\dialects\oracle\OracleOutboxClaim (final class implements Out
 tommyknocker\pdodb\dialects\oracle\OracleOutboxClaim  public __construct(DialectInterface $dialect)
 tommyknocker\pdodb\dialects\oracle\OracleOutboxClaim  public claim(PdoDb $db, string $tableName, string $token, int $limit, int $lockSeconds): array
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter (class extends SqlFormatterAbstract)
-tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  protected buildNestedJsonObject(array $parts, string $param): string
+tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  protected formatJsonTransform(string $col, array|string $path, mixed $value, string $operation, string $paramPrefix): array
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatCurDate(): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatCurTime(): string
 tommyknocker\pdodb\dialects\oracle\OracleSqlFormatter  public formatDateOnly(string|RawValue $value): string

@@ -199,6 +199,52 @@ trait JsonNumberComparisonScenarios
         }
     }
 
+    /**
+     * @return array<string, array{0: mixed}>
+     */
+    public static function jsonWrittenValues(): array
+    {
+        return [
+            'integer' => [999],
+            'fraction' => [2.5],
+            'true' => [true],
+            'false' => [false],
+            'text' => ['a "b" \\ c'],
+            'text that looks like a number' => ['30'],
+            'null' => [null],
+            'object' => [['x' => 1, 'y' => [true]]],
+            'list' => [[1, 'a', null]],
+        ];
+    }
+
+    #[DataProvider('jsonWrittenValues')]
+    public function testJsonSetAndJsonReplaceWriteTheValueWithItsJsonType(mixed $value): void
+    {
+        $this->prepareJsonNumberTable([1 => '{"a":{"b":1},"c":1}']);
+
+        try {
+            foreach (['jsonSet', 'jsonReplace'] as $method) {
+                foreach ([['a', 'b'], ['c']] as $path) {
+                    self::$db->find()->table('json_number_cmp')->where('id', 1)->update(['data' => '{"a":{"b":1},"c":1}']);
+                    self::$db->find()->table('json_number_cmp')->where('id', 1)->update(['data' => Db::{$method}('data', $path, $value)]);
+
+                    $document = json_decode((string)self::$db->rawQueryValue('SELECT data FROM json_number_cmp WHERE id = 1'), true, 512, JSON_THROW_ON_ERROR);
+                    $written = count($path) === 2 ? $document['a']['b'] : $document['c'];
+
+                    $this->assertSame($value, $written, $method . ' ' . implode('.', $path));
+                    $this->assertSame(1, count($path) === 2 ? $document['c'] : $document['a']['b'], 'the other key is untouched');
+
+                    if (is_int($value) || is_float($value) || is_bool($value)) {
+                        $found = self::$db->find()->from('json_number_cmp')->whereJsonPath('data', $path, '=', $value)->get();
+                        $this->assertSame([1], $this->jsonNumberIds($found), "{$method} is found by the typed comparison");
+                    }
+                }
+            }
+        } finally {
+            self::$db->schema()->dropTableIfExists('json_number_cmp');
+        }
+    }
+
     public function testBigIntegersAndSmallFractionsAreNotRounded(): void
     {
         $this->prepareJsonNumberTable();

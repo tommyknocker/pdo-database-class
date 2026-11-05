@@ -55,7 +55,10 @@ it, is [Upgrading from 2.x to 3.0](documentation/10-cookbook/05-upgrading.md). T
       still does on SQL Server and Oracle). On MariaDB
       `jsonSet()` / `jsonReplace()` used to store numbers, booleans, objects and lists as JSON strings; documents written
       that way keep the strings. Find them with `SELECT id FROM t WHERE JSON_TYPE(JSON_EXTRACT(col, '$.path')) = 'STRING'`
-      and rewrite them with `jsonSet()`.
+      and rewrite them with `jsonSet()`. SQL Server did the same, and wrote text with extra quotes (`"abc"` as `"\"abc\""`):
+      find the text ones with `SELECT id FROM t WHERE JSON_VALUE(col, '$.path') LIKE '"%"'` and rewrite them the same way.
+      Oracle wrote strings too, and `jsonReplace()` added a key named like the path (`"$.a.b"`): find those with
+      `JSON_EXISTS(col, '$."$.a.b"')`, remove the key with `JSON_TRANSFORM(col, REMOVE '$."$.a.b"')` and rewrite the value with `jsonSet()`.
 - [ ] MySQL `LOCAL INFILE` is off unless you pass `PDO\Mysql::ATTR_LOCAL_INFILE`.
 - [ ] CLI: unknown options exit with 2, failures print `Error: ...` and exit with 1 (`PDODB_DEBUG=1` for traces).
 - [ ] AI settings: one selected provider (`PDODB_AI_API_KEY`, `PDODB_AI_MODEL`).

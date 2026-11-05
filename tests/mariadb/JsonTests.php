@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace tommyknocker\pdodb\tests\mariadb;
 
-use PHPUnit\Framework\Attributes\DataProvider;
 use tommyknocker\pdodb\helpers\Db;
 use tommyknocker\pdodb\tests\shared\JsonNumberComparisonScenarios;
 
@@ -14,41 +13,6 @@ use tommyknocker\pdodb\tests\shared\JsonNumberComparisonScenarios;
 final class JsonTests extends BaseMariaDBTestCase
 {
     use JsonNumberComparisonScenarios;
-
-    /**
-     * @return array<string, array{0: mixed, 1: string}> value, JSON type
-     */
-    public static function jsonSetValues(): array
-    {
-        return [
-            'integer' => [999, 'INTEGER'],
-            'fraction' => [2.5, 'DOUBLE'],
-            'boolean' => [true, 'BOOLEAN'],
-            'text' => ['abc', 'STRING'],
-            'object' => [['x' => 1], 'OBJECT'],
-            'list' => [[1, 2], 'ARRAY'],
-        ];
-    }
-
-    #[DataProvider('jsonSetValues')]
-    public function testJsonSetAndJsonReplaceKeepTheTypeOfTheValue(mixed $value, string $type): void
-    {
-        $db = self::$db;
-        $db->schema()->dropTableIfExists('json_set_types');
-        $db->rawQuery('CREATE TABLE json_set_types (id INT PRIMARY KEY, meta JSON)');
-
-        try {
-            foreach (['jsonSet', 'jsonReplace'] as $method) {
-                $db->rawQuery('DELETE FROM json_set_types');
-                $db->find()->table('json_set_types')->insert(['id' => 1, 'meta' => '{"a":{"b":1}}']);
-                $db->find()->table('json_set_types')->where('id', 1)->update(['meta' => Db::{$method}('meta', ['a', 'b'], $value)]);
-
-                $this->assertSame($type, $db->rawQueryValue("SELECT JSON_TYPE(JSON_EXTRACT(meta, '$.a.b')) FROM json_set_types"), $method);
-            }
-        } finally {
-            $db->schema()->dropTableIfExists('json_set_types');
-        }
-    }
 
     protected function textScalarsAreTyped(): bool
     {

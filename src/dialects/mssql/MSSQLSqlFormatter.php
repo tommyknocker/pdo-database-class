@@ -48,7 +48,7 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
 
     /**
      * The condition "<number at the path> <operator> <placeholder>". NULL for a value that is not a number. A JSON string that
-     * holds a number counts as that number: jsonSet() writes numbers as strings here, and JSON_VALUE returns both as text.
+     * holds a number counts as that number: JSON_VALUE returns a string and a number alike as text.
      *
      * @param array<int, string|int>|string $path
      */
@@ -184,17 +184,7 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
 
     public function formatJsonSet(string $col, array|string $path, mixed $value): array
     {
-        $parts = $this->normalizeJsonPath($path);
-        $jsonPath = $this->buildJsonPathString($parts);
-        $colQuoted = $this->quoteIdentifier($col);
-        $param = $this->generateParameterName('jsonset', $col . '|' . $jsonPath);
-
-        $jsonText = $this->encodeToJson($value);
-
-        // MSSQL JSON_MODIFY: JSON_MODIFY(column, path, new_value)
-        $sql = "JSON_MODIFY({$colQuoted}, '{$jsonPath}', {$param})";
-
-        return [$sql, [$param => $jsonText]];
+        return $this->formatJsonModify($col, $path, $value, 'jsonset');
     }
 
     public function formatJsonRemove(string $col, array|string $path): string
@@ -209,19 +199,52 @@ class MSSQLSqlFormatter extends SqlFormatterAbstract
 
     public function formatJsonReplace(string $col, array|string $path, mixed $value): array
     {
-        // MSSQL JSON_MODIFY replaces if path exists, creates if not
-        // For replace-only behavior, check if path exists first
+        // JSON_MODIFY creates a missing key, so this is the same statement as formatJsonSet()
+        return $this->formatJsonModify($col, $path, $value, 'jsonreplace');
+    }
+
+    /**
+     * JSON_MODIFY with the value written as the JSON type it has in PHP.
+     *
+     * JSON_MODIFY stores a text parameter as a JSON string, so the text must not be JSON-encoded and a number or a boolean must
+     * reach it as a SQL number or BIT. A float is a DECIMAL when the numeric comparison can read it back (it reads
+     * DECIMAL(38,18); the exponent form of a FLOAT cannot be cast to it), a FLOAT outside that range. JSON_MODIFY with NULL
+     * removes the key, so a JSON null is written by setting the key and then setting it to NULL in strict mode, which keeps
+     * it; strict mode fails when the parent is missing, hence the guard.
+     *
+     * @param array<int, string|int>|string $path
+     *
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    protected function formatJsonModify(string $col, array|string $path, mixed $value, string $paramPrefix): array
+    {
         $parts = $this->normalizeJsonPath($path);
         $jsonPath = $this->buildJsonPathString($parts);
         $colQuoted = $this->quoteIdentifier($col);
-        $param = $this->generateParameterName('jsonreplace', $col . '|' . $jsonPath);
 
-        $jsonText = $this->encodeToJson($value);
+        if ($value === null) {
+            $sql = "JSON_MODIFY(JSON_MODIFY({$colQuoted}, '{$jsonPath}', N'null'), 'strict {$jsonPath}', NULL)";
+            if (count($parts) > 1) {
+                $parent = $this->buildJsonPathString(array_slice($parts, 0, -1));
+                $sql = "CASE WHEN JSON_QUERY({$colQuoted}, '{$parent}') IS NOT NULL THEN {$sql} ELSE {$colQuoted} END";
+            }
 
-        // JSON_MODIFY replaces if path exists
-        $sql = "JSON_MODIFY({$colQuoted}, '{$jsonPath}', {$param})";
+            return [$sql, []];
+        }
 
-        return [$sql, [$param => $jsonText]];
+        $param = $this->generateParameterName($paramPrefix, $col . '|' . $jsonPath);
+        [$expression, $bound] = match (true) {
+            is_bool($value) => ["CAST({$param} AS BIT)", $value ? '1' : '0'],
+            is_int($value) => ["CAST({$param} AS BIGINT)", (string)$value],
+            is_float($value) => [
+                'CAST(' . $param . ' AS ' . ($value === 0.0 || (abs($value) >= 1e-18 && abs($value) < 1e20) ? 'DECIMAL(38,18)' : 'FLOAT') . ')',
+                $this->encodeToJson($value),
+            ],
+            is_array($value) || is_object($value) => ["JSON_QUERY({$param})", $this->encodeToJson($value)],
+            default => [$param, (string)$value],
+        };
+
+        return ["JSON_MODIFY({$colQuoted}, '{$jsonPath}', {$expression})", [$param => $bound]];
     }
 
     public function formatJsonExists(string $col, array|string $path): string

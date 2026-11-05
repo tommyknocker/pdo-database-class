@@ -66,7 +66,7 @@ MariaDB, `1e-18` on SQL Server. A number outside that range (MySQL and MariaDB: 
 SQL Server: beyond `1e20`) matches no numeric condition instead of being rounded.
 
 A JSON string that holds a number (`"30"`) or a boolean (`"true"`) is not one on MySQL, MariaDB, PostgreSQL and SQLite, so
-`= 30` and `= true` do not match it. On SQL Server and Oracle it is, because `jsonSet()` writes values as strings there.
+`= 30` and `= true` do not match it. On SQL Server and Oracle it is, because the database reads a JSON string and a JSON number alike as text and converts it.
 
 ### Multiple JSON Conditions
 
